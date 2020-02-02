@@ -5,7 +5,8 @@ const setup = {
   maximalBuyingPrice: 1,
   msInterval: 100,
   saveScreenshots: false,
-  saveHtmlCode: false
+  saveHtmlCode: false,
+  accountsToUseCount: 2 // with value of -1 will use all available accounts
 };
 
 module.exports = setup;
