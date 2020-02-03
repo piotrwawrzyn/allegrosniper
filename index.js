@@ -9,12 +9,18 @@ const {
 } = setup;
 const Bot = require('./Bot');
 const users = require('./users');
+const sleep = require('./utils/sleep');
 
 const config = { msInterval, saveScreenshots, saveHtmlCode };
 
-for (const [index, user] of users.entries()) {
-  if (accountsToUseCount >= 0 && index >= accountsToUseCount) break;
+(async () => {
+  await Bot.launchBrowser();
 
-  const bot = new Bot(auctions, maximalBuyingPrice, user, config);
-  bot.start();
-}
+  for (const [index, user] of users.entries()) {
+    if (accountsToUseCount >= 0 && index >= accountsToUseCount) break;
+
+    const bot = new Bot(auctions, maximalBuyingPrice, user, config);
+    bot.start();
+    await sleep(100);
+  }
+})();
