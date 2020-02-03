@@ -2,6 +2,7 @@ const puppeteer = require('puppeteer');
 const saveHtml = require('./utils/saveHtml');
 const log = require('./utils/log');
 const sleep = require('./utils/sleep');
+const desktop = puppeteer.devices['Desktop 1920x1080'];
 
 class Bot {
   constructor(auctions, maximalBuyingPrice, user, config) {
@@ -137,8 +138,22 @@ class Bot {
 
     this.page = await context.newPage();
 
+    // await this.page.emulate(desktop);
+
     // Set default navigation timeout
     await this.page.setDefaultNavigationTimeout(6000);
+
+    // Don't load images
+    await this.page.setRequestInterception(true);
+    this.page.on('request', request => {
+      if (
+        ['image', 'stylesheet', 'font'].indexOf(request.resourceType()) !== -1
+      ) {
+        request.abort();
+      } else {
+        request.continue();
+      }
+    });
   }
 
   async authorize() {
@@ -174,9 +189,10 @@ class Bot {
 
             await this.clickBuyNowButton();
 
-            await this.selectPaymentMethod();
-            await this.selectCreditCard();
             await this.buyAndPay();
+            return;
+            // await this.selectPaymentMethod();
+            // await this.selectCreditCard();
           } else {
             this.log(`Price is NOT SATISFYING`);
           }

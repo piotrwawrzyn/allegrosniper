@@ -9,7 +9,6 @@ const {
 } = setup;
 const Bot = require('./Bot');
 const users = require('./users');
-const sleep = require('./utils/sleep');
 
 const config = { msInterval, saveScreenshots, saveHtmlCode };
 
@@ -21,6 +20,5 @@ const config = { msInterval, saveScreenshots, saveHtmlCode };
 
     const bot = new Bot(auctions, maximalBuyingPrice, user, config);
     bot.start();
-    await sleep(100);
   }
 })();
