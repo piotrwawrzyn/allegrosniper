@@ -95,9 +95,9 @@ class Bot {
     await buyNowButton.click();
 
     await this.wait();
-    await this.page.evaluate(_ => {
-      window.scrollBy(0, window.innerHeight);
-    });
+    // await this.page.evaluate(_ => {
+    //   window.scrollBy(0, window.innerHeight);
+    // });
     await this.saveSnapshot('buynow_clicked');
   }
 
@@ -118,7 +118,7 @@ class Bot {
     await this.page.click('#buy-and-pay-btn');
     await this.saveSnapshot('buyandpay_clicked');
 
-    this.log('PURCHASE SUCCESSFUL! :-)');
+    this.log('WOW, PURCHASE SUCCESSFUL :-)');
   }
 
   async selectPaymentMethod() {
@@ -134,15 +134,13 @@ class Bot {
     this.log('Selecting first credit card from the list...');
     await this.page.waitForSelector('[name=creditCard]');
     await this.page.click('[name=creditCard]');
-    // await this.page.click(
-    //   '.m-choice.m-choice--radio.ng-pristine.ng-untouched.ng-valid.ng-not-empty.ng-valid-required'
-    // );
     await this.saveSnapshot('credit_card_selected');
   }
 
   async initializeBrowserEnvironment() {
     this.browser = await puppeteer.launch({ headless: true });
     this.page = await this.browser.newPage();
+    await this.page.setDefaultNavigationTimeout(6000);
     await this.page.emulate(desktop);
   }
 
@@ -155,8 +153,6 @@ class Bot {
 
     // Fill login data and submit
     await this.fillloginData(this.user);
-
-    await this.saveSnapshot('login_page');
   }
 
   async start() {
@@ -172,24 +168,24 @@ class Bot {
           const price = await this.checkThePriceOnAuction();
 
           if (price <= this.maximalBuyingPrice) {
-            this.log(`Price is GOOD, time to make some shopping!`); // (${url})
+            this.log(`Price is GREAT, time to do some shopping!`);
 
             await this.clickBuyNowButton();
 
             await this.selectPaymentMethod();
             await this.selectCreditCard();
             await this.buyAndPay();
-            // await this.browser.close();
+
             return;
           } else {
-            this.log(`Price is BAD `); // (${url})
+            this.log(`Price is NOT SATISFYING`);
           }
+
+          this.log(`Sleeping for ${this.msInterval}`);
+          await sleep(this.msInterval);
         }
       } catch (err) {
-        console.log(err);
-      } finally {
-        this.log(`Sleeping for ${this.msInterval}`);
-        await sleep(this.msInterval);
+        this.log(err);
       }
     }
   }
