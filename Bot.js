@@ -190,6 +190,7 @@ class Bot {
             await this.clickBuyNowButton();
 
             await this.buyAndPay();
+
             return;
             // await this.selectPaymentMethod();
             // await this.selectCreditCard();
