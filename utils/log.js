@@ -1,10 +1,10 @@
 const logToFile = require('log-to-file');
 
 const log = (message, user) => {
-  const email = `[${user.email}]`;
+  const email = user ? `[${user.email}] ` : '';
   const today = new Date();
   const time = `[${today.getHours()}:${today.getMinutes()}:${today.getSeconds()}]`;
-  const logMsg = email + ' ' + time + ' ' + message;
+  const logMsg = email + time + ' ' + message;
   console.log(logMsg);
   logToFile(logMsg, 'bot.log');
 };

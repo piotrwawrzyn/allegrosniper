@@ -17,7 +17,7 @@ class Bot {
   }
 
   static async launchBrowser() {
-    console.log('creating browser');
+    log('Creating browser instance');
     Bot.browser = await puppeteer.launch({ headless: true });
   }
 
@@ -140,9 +140,6 @@ class Bot {
 
     // await this.page.emulate(desktop);
 
-    // Set default navigation timeout
-    await this.page.setDefaultNavigationTimeout(6000);
-
     // Don't load images
     await this.page.setRequestInterception(true);
     this.page.on('request', request => {
@@ -171,8 +168,11 @@ class Bot {
     try {
       await this.openNewIncognitoPage();
       await this.authorize();
+
+      // Set default navigation timeout
+      await this.page.setDefaultNavigationTimeout(6000);
     } catch (err) {
-      console.log(err);
+      this.log(err);
       return;
     }
 
@@ -188,7 +188,6 @@ class Bot {
             this.log(`Price is GREAT, time to do some shopping!`);
 
             await this.clickBuyNowButton();
-
             await this.buyAndPay();
 
             return;
