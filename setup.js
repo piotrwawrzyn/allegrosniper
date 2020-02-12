@@ -1,12 +1,12 @@
 const setup = {
   auctions: [
-    'https://allegro.pl/oferta/donegal-zestaw-do-makijazu-pedzel-aplikator-8909487137'
+    'https://allegro.pl/oferta/vanish-odplamiacz-do-tkanin-plyn-1-1-3l-8683832964'
   ],
   maximalBuyingPrice: 1,
   msInterval: 400,
-  saveScreenshots: false,
+  saveScreenshots: true,
   saveHtmlCode: false,
-  accountsToUseCount: -1 // with value of -1 will use all available accounts
+  accountsToUseCount: 5 // with value of -1 will use all available accounts
 };
 
 module.exports = setup;
