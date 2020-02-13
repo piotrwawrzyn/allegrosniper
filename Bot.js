@@ -20,9 +20,9 @@ class Bot {
     Bot.browser = await puppeteer.launch({ headless });
   }
 
-  async getElementByText(text) {
+  async getElementByText(elementType, text) {
     const elements = await this.page.$x(
-      `//button[contains(text(), "${text}")]`
+      `//${elementType}[contains(text(), "${text}")]`
     );
 
     if (elements.length > 0) return elements[0];
@@ -36,18 +36,6 @@ class Bot {
 
   log(message) {
     log(message, this.user);
-  }
-
-  async saveSnapshot(title) {
-    // Save screenshot
-    if (this.saveScreenshots)
-      this.page.screenshot({ path: `screenshots/${title}.png` });
-
-    // Save html code
-    if (this.saveHtmlCode) {
-      const code = await this.page.content();
-      saveHtml(code, title);
-    }
   }
 
   async closePopup() {
@@ -67,7 +55,6 @@ class Bot {
   async goToAuction(url, counter) {
     this.log('Opening auction...');
     await this.page.goto(url);
-    await this.saveSnapshot(`auction_${counter}_opened`);
   }
 
   async checkThePriceOnAuction() {
@@ -88,12 +75,11 @@ class Bot {
 
   async clickBuyNowButton() {
     this.log('Clicking buy now...');
-    const buyNowButton = await this.getElementByText('KUP TERAZ');
+    const buyNowButton = await this.getElementByText('button', 'KUP TERAZ');
 
     await buyNowButton.click();
 
     await this.wait();
-    await this.saveSnapshot('buynow_clicked');
   }
 
   async fillloginData(user) {
@@ -101,17 +87,14 @@ class Bot {
 
     await this.page.type('#username', user.email);
     await this.page.type('#password', user.password);
-    await this.saveSnapshot('before_login_submit');
     await this.page.click('#login-button');
     await this.wait();
-    await this.saveSnapshot('after_login_submit');
   }
 
   async buyAndPay() {
     this.log('Clicking buy and pay...');
 
     await this.page.click('#buy-and-pay-btn');
-    await this.saveSnapshot('buyandpay_clicked');
 
     this.log('WOW, PURCHASE SUCCESSFUL :-)');
   }
