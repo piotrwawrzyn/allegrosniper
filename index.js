@@ -5,7 +5,8 @@ const {
   msInterval,
   saveScreenshots,
   saveHtmlCode,
-  accountsToUseCount
+  accountsToUseCount,
+  headless
 } = setup;
 const Bot = require('./Bot');
 const users = require('./users');
@@ -13,7 +14,7 @@ const users = require('./users');
 const config = { msInterval, saveScreenshots, saveHtmlCode };
 
 (async () => {
-  await Bot.launchBrowser();
+  await Bot.launchBrowser(headless);
 
   for (const [index, user] of users.entries()) {
     if (accountsToUseCount >= 0 && index >= accountsToUseCount) break;

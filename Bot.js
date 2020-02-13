@@ -2,7 +2,6 @@ const puppeteer = require('puppeteer');
 const saveHtml = require('./utils/saveHtml');
 const log = require('./utils/log');
 const sleep = require('./utils/sleep');
-const desktop = puppeteer.devices['Desktop 1920x1080'];
 
 class Bot {
   constructor(auctions, maximalBuyingPrice, user, config) {
@@ -16,9 +15,9 @@ class Bot {
     this.saveHtmlCode = saveHtmlCode;
   }
 
-  static async launchBrowser() {
+  static async launchBrowser(headless) {
     log('Creating browser instance');
-    Bot.browser = await puppeteer.launch({ headless: true });
+    Bot.browser = await puppeteer.launch({ headless });
   }
 
   async getElementByText(text) {
@@ -117,28 +116,10 @@ class Bot {
     this.log('WOW, PURCHASE SUCCESSFUL :-)');
   }
 
-  async selectPaymentMethod() {
-    this.log('Clicking credit card payment method...');
-    let elements = await this.page.$x(
-      `//p[contains(text(), "karta płatnicza")]`
-    );
-    await elements[0].click();
-    await this.saveSnapshot('credit_card_clicked');
-  }
-
-  async selectCreditCard() {
-    this.log('Selecting first credit card from the list...');
-    await this.page.waitForSelector('[name=creditCard]');
-    await this.page.click('[name=creditCard]');
-    await this.saveSnapshot('credit_card_selected');
-  }
-
   async openNewIncognitoPage() {
     const context = await Bot.browser.createIncognitoBrowserContext();
 
     this.page = await context.newPage();
-
-    // await this.page.emulate(desktop);
 
     // Don't load images
     await this.page.setRequestInterception(true);
@@ -187,12 +168,11 @@ class Bot {
           if (price <= this.maximalBuyingPrice) {
             this.log(`Price is GREAT, time to do some shopping!`);
 
+            // Assume that payment method is already selected
             await this.clickBuyNowButton();
             await this.buyAndPay();
 
             return;
-            // await this.selectPaymentMethod();
-            // await this.selectCreditCard();
           } else {
             this.log(`Price is NOT SATISFYING`);
           }
