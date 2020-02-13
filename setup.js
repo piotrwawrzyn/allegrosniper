@@ -1,13 +1,11 @@
 const setup = {
-  auctions: [
-    'https://allegro.pl/oferta/vanish-odplamiacz-do-tkanin-plyn-1-1-3l-8683832964'
-  ],
-  maximalBuyingPrice: 0,
+  auctions: ['https://allegro.pl/oferta/aukcja-testowa-8630803783'],
+  maximalBuyingPrice: 1,
   msInterval: 400,
-  saveScreenshots: true,
+  saveScreenshots: false,
   saveHtmlCode: false,
-  accountsToUseCount: 5, // with value of -1 will use all available accounts
-  headless: false
+  accountsToUseCount: -1, // with value of -1 will use all available accounts
+  headless: true
 };
 
 module.exports = setup;

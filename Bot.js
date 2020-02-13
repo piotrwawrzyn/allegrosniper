@@ -125,7 +125,7 @@ class Bot {
     await this.page.setRequestInterception(true);
     this.page.on('request', request => {
       if (
-        ['image', 'stylesheet', 'font'].indexOf(request.resourceType()) !== -1
+        [('image', 'stylesheet', 'font')].indexOf(request.resourceType()) !== -1
       ) {
         request.abort();
       } else {
@@ -169,8 +169,23 @@ class Bot {
             this.log(`Price is GREAT, time to do some shopping!`);
 
             // Assume that payment method is already selected
-            await this.clickBuyNowButton();
-            await this.buyAndPay();
+            // await this.clickBuyNowButton();
+            // await this.buyAndPay();
+
+            // Close page
+            await this.page.close();
+
+            // Remove bot from running instances
+            Bot.runningInstances = Bot.runningInstances.filter(
+              instance => instance !== this
+            );
+
+            if (Bot.runningInstances.length === 0) {
+              this.log('It seems that all bots are done botting');
+              this.log('Closing browser...');
+              await Bot.browser.close();
+              this.log('Browser closed');
+            }
 
             return;
           } else {

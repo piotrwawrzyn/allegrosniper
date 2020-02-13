@@ -15,11 +15,13 @@ const config = { msInterval, saveScreenshots, saveHtmlCode };
 
 (async () => {
   await Bot.launchBrowser(headless);
+  Bot.runningInstances = [];
 
   for (const [index, user] of users.entries()) {
     if (accountsToUseCount >= 0 && index >= accountsToUseCount) break;
 
     const bot = new Bot(auctions, maximalBuyingPrice, user, config);
+    Bot.runningInstances.push(bot);
     bot.start();
   }
 })();
