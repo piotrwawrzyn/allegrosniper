@@ -1,22 +1,37 @@
 const puppeteer = require('puppeteer');
-const saveHtml = require('./utils/saveHtml');
+const getAuctionIdFromUrl = require('./utils/getAuctionIdFromUrl');
 const log = require('./utils/log');
 const sleep = require('./utils/sleep');
 
+const FetchingResult = {
+  TOO_EXPENSIVE: 'tooExpensive',
+  ERROR_WHILE_BUYING: 'error',
+  SUCCESSFULY_BOUGHT: 'successfulyBought'
+};
+
 class Bot {
   constructor(auctions, maximalBuyingPrice, user, config) {
-    const { msInterval, saveScreenshots, saveHtmlCode } = config;
+    Bot.runningInstances.push(this);
+
+    const { msInterval } = config;
 
     this.auctions = auctions;
     this.maximalBuyingPrice = maximalBuyingPrice;
     this.user = user;
     this.msInterval = msInterval;
-    this.saveScreenshots = saveScreenshots;
-    this.saveHtmlCode = saveHtmlCode;
+    this.auctionIdsMap = new Map();
+
+    // Create a map connecting auction urls with auction ids
+    for (const auction of this.auctions) {
+      this.auctionIdsMap.set(auction, getAuctionIdFromUrl(auction));
+    }
   }
 
   static async launchBrowser(headless) {
     log('Creating browser instance');
+
+    Bot.runningInstances = [];
+
     Bot.browser = await puppeteer.launch({ headless });
   }
 
@@ -34,8 +49,8 @@ class Bot {
     await this.page.waitForNavigation();
   }
 
-  log(message) {
-    log(message, this.user);
+  async log(message, special) {
+    await log(message, this.user, special);
   }
 
   async closePopup() {
@@ -52,34 +67,9 @@ class Bot {
     }
   }
 
-  async goToAuction(url, counter) {
+  async goToUrl(url) {
     this.log('Opening auction...');
     await this.page.goto(url);
-  }
-
-  async checkThePriceOnAuction() {
-    this.log('Checking the price...');
-
-    const selector = '._wtiln';
-    const priceString = await this.page.evaluate(
-      selector => document.querySelector(selector).innerText,
-      selector
-    );
-
-    const price = parseInt(priceString);
-
-    this.log(`Price is ${priceString}.`);
-
-    return price;
-  }
-
-  async clickBuyNowButton() {
-    this.log('Clicking buy now...');
-    const buyNowButton = await this.getElementByText('button', 'KUP TERAZ');
-
-    await buyNowButton.click();
-
-    await this.wait();
   }
 
   async fillloginData(user) {
@@ -91,30 +81,172 @@ class Bot {
     await this.wait();
   }
 
-  async buyAndPay() {
-    this.log('Clicking buy and pay...');
-
-    await this.page.click('#buy-and-pay-btn');
-
-    this.log('WOW, PURCHASE SUCCESSFUL :-)');
-  }
-
   async openNewIncognitoPage() {
+    this.log('Opening new browser context');
     const context = await Bot.browser.createIncognitoBrowserContext();
 
     this.page = await context.newPage();
+  }
 
-    // Don't load images
-    await this.page.setRequestInterception(true);
-    this.page.on('request', request => {
-      if (
-        [('image', 'stylesheet', 'font')].indexOf(request.resourceType()) !== -1
-      ) {
-        request.abort();
-      } else {
-        request.continue();
+  async attemptToBuy(auctionUrl) {
+    const auctionId = this.auctionIdsMap.get(auctionUrl);
+
+    const auction = {
+      url: auctionUrl,
+      id: auctionId,
+      expectedPrice: this.maximalBuyingPrice,
+      buyer: this.user
+    };
+
+    const result = await this.page.evaluate(async auction => {
+      let response;
+
+      try {
+        response = await fetch('https://allegro.pl/transaction-entry/buy-now', {
+          credentials: 'include',
+          headers: {
+            accept:
+              'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'accept-language': 'pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7',
+            'cache-control': 'max-age=0',
+            'content-type': 'application/x-www-form-urlencoded',
+            dpr: '1',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-site': 'same-origin',
+            'sec-fetch-user': '?1',
+            'upgrade-insecure-requests': '1',
+            'viewport-width': '1920'
+          },
+          referrer: auction.url,
+          referrerPolicy: 'unsafe-url',
+          body: `item_id=${auction.id}&guest=1&quantity=1`,
+          method: 'POST',
+          mode: 'cors'
+        });
+      } catch (err) {
+        return {
+          result: 'error',
+          message: `Failed to fetch buy-now POST call`
+        };
       }
-    });
+
+      const data = await response.text();
+
+      // Get auction information
+      const [result] = data.match(/(?<=JSON\.parse\(\s*).*?(?=\s*\))/);
+
+      if (!result)
+        return {
+          result: 'error',
+          message: `Can't parse auction price because no JSON has been found!`
+        };
+
+      const transactionObject = JSON.parse(JSON.parse(result));
+
+      // I assume that there will always be exactly ONE >>order<< in the array
+      if (!transactionObject) {
+        return {
+          result: 'error',
+          message: `Transaction object is null or undefined`
+        };
+      }
+
+      if (!transactionObject.orders) {
+        return {
+          result: 'error',
+          message: `Orders property in transaction object is null or undefined`
+        };
+      }
+
+      const [order] = transactionObject.orders;
+
+      // I assume that there will always be exactly ONE >>offer<< in the array
+      const [offer] = order.offers;
+
+      if (!order || !offer) return;
+
+      const { totalPrice } = offer;
+
+      if (totalPrice <= auction.expectedPrice) {
+        // This is a good time to buy
+        const transactionId = transactionObject.id;
+
+        // Payment Id may be null at this point
+        let paymentId = transactionObject.payment.id;
+
+        const { delivery } = order;
+
+        if (!delivery)
+          return {
+            result: 'error',
+            message: `Delivery method has not been set`
+          };
+
+        try {
+          await fetch(
+            `https://edge.allegro.pl/purchases/${transactionId}/buy-commands/web`,
+            {
+              credentials: 'include',
+              headers: {
+                accept: 'application/vnd.allegro.public.v1+json',
+                'accept-language': 'pl-PL',
+                'content-type': 'application/vnd.allegro.public.v1+json',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-site': 'same-site',
+                'transaction-type': 'CART'
+              },
+              referrer: `https://allegro.pl/transaction-front/app/user/purchase/${transactionId}/dapf`,
+              referrerPolicy: 'no-referrer-when-downgrade',
+              body: '{}',
+              method: 'PUT',
+              mode: 'cors'
+            }
+          );
+        } catch (err) {
+          return {
+            result: 'error',
+            message: `Failed to fetch buy-commands PUT call`
+          };
+        }
+
+        try {
+          await fetch('https://edge.allegro.pl/payment/finalize', {
+            credentials: 'include',
+            headers: {
+              accept: 'application/vnd.allegro.public.v2+json',
+              'accept-language': 'pl-PL',
+              'content-type': 'application/vnd.allegro.public.v2+json',
+              'sec-fetch-mode': 'cors',
+              'sec-fetch-site': 'same-site'
+            },
+            referrer: `https://allegro.pl/transaction-front/app/user/purchase/${transactionId}/dapf`,
+            referrerPolicy: 'no-referrer-when-downgrade',
+            body: `{"paymentId":"${paymentId}"}`,
+            method: 'POST',
+            mode: 'cors'
+          });
+        } catch (err) {
+          return {
+            result: 'error',
+            message: `Failed to fetch finalize POST call`
+          };
+        }
+
+        return {
+          result: 'successfulyBought',
+          message: `Item has been successfuly bought for ${totalPrice} PLN`
+        };
+      } else {
+        // Well, price is meh let's proceed
+
+        return {
+          result: 'tooExpensive',
+          message: `The price is ${totalPrice} PLN and it sux`
+        };
+      }
+    }, auction);
+
+    return result;
   }
 
   async authorize() {
@@ -133,54 +265,51 @@ class Bot {
       await this.openNewIncognitoPage();
       await this.authorize();
 
-      // Set default navigation timeout
-      await this.page.setDefaultNavigationTimeout(6000);
-    } catch (err) {
-      this.log(err);
-      return;
-    }
+      while (true) {
+        for (const auction of this.auctions) {
+          this.log(
+            `Let me check the price... (auction ${this.auctionIdsMap.get(
+              auction
+            )})`
+          );
 
-    while (true) {
-      try {
-        let i = 1;
-        for (const url of this.auctions) {
-          await this.goToAuction(url, i++);
+          const { result, message } = await this.attemptToBuy(this.auctions[0]);
 
-          const price = await this.checkThePriceOnAuction();
-
-          if (price <= this.maximalBuyingPrice) {
-            this.log(`Price is GREAT, time to do some shopping!`);
-
-            // Assume that payment method is already selected
-            // await this.clickBuyNowButton();
-            // await this.buyAndPay();
-
-            // Close page
-            await this.page.close();
-
-            // Remove bot from running instances
-            Bot.runningInstances = Bot.runningInstances.filter(
-              instance => instance !== this
-            );
-
-            if (Bot.runningInstances.length === 0) {
-              this.log('It seems that all bots are done botting');
-              this.log('Closing browser...');
-              await Bot.browser.close();
-              this.log('Browser closed');
+          switch (result) {
+            case FetchingResult.TOO_EXPENSIVE: {
+              this.log('Too expensive. ' + message);
+              break;
             }
 
-            return;
-          } else {
-            this.log(`Price is NOT SATISFYING`);
-          }
+            case FetchingResult.SUCCESSFULY_BOUGHT: {
+              await this.log('Success! ' + message, 'success');
 
-          this.log(`Sleeping for ${this.msInterval}`);
-          await sleep(this.msInterval);
+              await this.page.close();
+
+              // Remove bot instance from the collection
+              Bot.runningInstances = Bot.runningInstances.filter(
+                inst => inst !== this
+              );
+
+              // Was this last bot running?
+              if (!Bot.runningInstances.length) await Bot.browser.close();
+
+              return;
+            }
+
+            case FetchingResult.ERROR_WHILE_BUYING: {
+              this.log('Error while trying to buy. ' + message, 'error');
+              break;
+            }
+          }
         }
-      } catch (err) {
-        this.log(err);
+
+        this.log(`Sleeping for ${this.msInterval}...`);
+        await sleep(this.msInterval);
       }
+    } catch (err) {
+      this.log(err, 'error');
+      return;
     }
   }
 }

@@ -1,9 +1,10 @@
 {
-  "name": "allegrosnipermulti",
-  "version": "1.0.0",
+  "name": "allegrosniper",
+  "version": "2.0.0",
   "description": "",
   "main": "index.js",
   "dependencies": {
+    "chalk": "^3.0.0",
     "log-to-file": "^2.0.2",
     "puppeteer": "^2.0.0"
   },

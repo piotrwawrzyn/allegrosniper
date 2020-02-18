@@ -3,19 +3,21 @@ const {
   auctions,
   maximalBuyingPrice,
   msInterval,
-  saveScreenshots,
-  saveHtmlCode,
   accountsToUseCount,
   headless
 } = setup;
 const Bot = require('./Bot');
 const users = require('./users');
+const consoleLogIntro = require('./utils/consoleLogIntro');
+const showPatchNotes = require('./utils/showPatchNotes');
 
-const config = { msInterval, saveScreenshots, saveHtmlCode };
+const config = { msInterval };
 
 (async () => {
+  consoleLogIntro();
+  await showPatchNotes();
+
   await Bot.launchBrowser(headless);
-  Bot.runningInstances = [];
 
   for (const [index, user] of users.entries()) {
     if (accountsToUseCount >= 0 && index >= accountsToUseCount) break;

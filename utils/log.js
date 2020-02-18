@@ -1,12 +1,30 @@
 const logToFile = require('log-to-file');
+const chalk = require('chalk');
 
-const log = (message, user) => {
+const log = async (message, user, special) => {
   const email = user ? `[${user.email}] ` : '';
   const today = new Date();
   const time = `[${today.getHours()}:${today.getMinutes()}:${today.getSeconds()}]`;
-  const logMsg = email + time + ' ' + message;
-  console.log(logMsg);
-  logToFile(logMsg, 'bot.log');
+  const msgToFile = email + ' ' + time + ' ' + message;
+
+  logToFile(msgToFile, 'bot.log');
+
+  switch (special) {
+    case 'success': {
+      message = chalk.green.bold(message);
+      break;
+    }
+
+    case 'error': {
+      message = chalk.red.bold(message);
+      break;
+    }
+  }
+
+  const msgToDisplay = `${chalk.yellow(email)}${chalk.cyan(
+    time
+  )} ${chalk.whiteBright(message)}`;
+  console.log(msgToDisplay);
 };
 
 module.exports = log;
