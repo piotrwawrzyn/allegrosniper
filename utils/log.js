@@ -11,12 +11,12 @@ const log = async (message, user, special) => {
 
   switch (special) {
     case 'success': {
-      message = chalk.green.bold(message);
+      message = chalk.greenBright.bold(message);
       break;
     }
 
     case 'error': {
-      message = chalk.red.bold(message);
+      message = chalk.redBright.bold(message);
       break;
     }
   }

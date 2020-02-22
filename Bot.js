@@ -2,12 +2,8 @@ const puppeteer = require('puppeteer');
 const getAuctionIdFromUrl = require('./utils/getAuctionIdFromUrl');
 const log = require('./utils/log');
 const sleep = require('./utils/sleep');
-
-const FetchingResult = {
-  TOO_EXPENSIVE: 'tooExpensive',
-  ERROR_WHILE_BUYING: 'error',
-  SUCCESSFULY_BOUGHT: 'successfulyBought'
-};
+const FetchingResult = require('./enums/FetchingResult');
+const ReportTable = require('./ReportTable');
 
 class Bot {
   constructor(auctions, maximalBuyingPrice, user, config) {
@@ -19,7 +15,9 @@ class Bot {
     this.maximalBuyingPrice = maximalBuyingPrice;
     this.user = user;
     this.msInterval = msInterval;
+    this.run = true;
     this.auctionIdsMap = new Map();
+    this.dateStarted = new Date();
 
     // Create a map connecting auction urls with auction ids
     for (const auction of this.auctions) {
@@ -31,8 +29,12 @@ class Bot {
     log('Creating browser instance');
 
     Bot.runningInstances = [];
+    Bot.reportTable = new ReportTable();
 
-    Bot.browser = await puppeteer.launch({ headless });
+    Bot.browser = await puppeteer.launch({
+      headless,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
   }
 
   async getElementByText(elementType, text) {
@@ -88,7 +90,7 @@ class Bot {
     this.page = await context.newPage();
   }
 
-  async attemptToBuy(auctionUrl) {
+  async createTransaction(auctionUrl) {
     const auctionId = this.auctionIdsMap.get(auctionUrl);
 
     const auction = {
@@ -97,6 +99,8 @@ class Bot {
       expectedPrice: this.maximalBuyingPrice,
       buyer: this.user
     };
+
+    this.lastFetchingStarted = new Date();
 
     const result = await this.page.evaluate(async auction => {
       let response;
@@ -260,57 +264,113 @@ class Bot {
     await this.fillloginData(this.user);
   }
 
-  async start() {
+  async restart(secondsBeforeRestart) {
+    this.log('Restarting bot...');
+
+    await this.wait(1000 * secondsBeforeRestart);
+    await this.page.close();
+    this.start();
+  }
+
+  async init() {
     try {
       await this.openNewIncognitoPage();
       await this.authorize();
 
-      while (true) {
-        for (const auction of this.auctions) {
-          this.log(
-            `Let me check the price... (auction ${this.auctionIdsMap.get(
-              auction
-            )})`
-          );
+      return true;
+    } catch (err) {
+      this.log(err, 'error');
+      await this.restart(30);
 
-          const { result, message } = await this.attemptToBuy(this.auctions[0]);
+      return false;
+    }
+  }
 
-          switch (result) {
-            case FetchingResult.TOO_EXPENSIVE: {
-              this.log('Too expensive. ' + message);
-              break;
-            }
+  async stop() {
+    this.run = false;
 
-            case FetchingResult.SUCCESSFULY_BOUGHT: {
-              await this.log('Success! ' + message, 'success');
+    await this.page.close();
 
-              await this.page.close();
+    // Remove bot instance from the collection
+    Bot.runningInstances = Bot.runningInstances.filter(inst => inst !== this);
 
-              // Remove bot instance from the collection
-              Bot.runningInstances = Bot.runningInstances.filter(
-                inst => inst !== this
-              );
+    // Was this the last bot running?
+    if (!Bot.runningInstances.length) {
+      Bot.reportTable.display();
+      await Bot.browser.close();
+    }
+  }
 
-              // Was this last bot running?
-              if (!Bot.runningInstances.length) await Bot.browser.close();
+  async attemptToBuy(auction) {
+    this.log(`Let me snipe auction ${this.auctionIdsMap.get(auction)}...`);
 
-              return;
-            }
+    let result, message;
 
-            case FetchingResult.ERROR_WHILE_BUYING: {
-              this.log('Error while trying to buy. ' + message, 'error');
-              break;
-            }
-          }
-        }
-
-        this.log(`Sleeping for ${this.msInterval}...`);
-        await sleep(this.msInterval);
-      }
+    try {
+      const outcome = await this.createTransaction(auction);
+      result = outcome.result;
+      message = outcome.message;
     } catch (err) {
       this.log(err, 'error');
       return;
     }
+
+    if (
+      result === FetchingResult.ERROR ||
+      result === FetchingResult.SUCCESSFULY_BOUGHT
+    ) {
+      Bot.reportTable.push({
+        user: this.user.email,
+        status: result,
+        buyingTime: new Date().getTime() - this.lastFetchingStarted.getTime(),
+        dateStarted: this.dateStarted,
+        dateFinished: new Date()
+      });
+    }
+
+    switch (result) {
+      case FetchingResult.TOO_EXPENSIVE: {
+        this.log('Too expensive. ' + message);
+        break;
+      }
+
+      case FetchingResult.SUCCESSFULY_BOUGHT: {
+        await this.log('Success! ' + message, 'success');
+
+        await this.stop();
+
+        break;
+      }
+
+      case FetchingResult.ERROR: {
+        this.log('Error while trying to buy. ' + message, 'error');
+
+        await this.stop();
+
+        break;
+      }
+    }
+  }
+
+  async scan() {
+    while (this.run) {
+      for (const auction of this.auctions) {
+        await this.attemptToBuy(auction);
+      }
+
+      if (this.run) {
+        this.log(`Sleeping for ${this.msInterval}...`);
+        await sleep(this.msInterval);
+      }
+    }
+  }
+
+  async start() {
+    const successfulInit = await this.init();
+
+    if (!successfulInit) return;
+
+    this.scan();
   }
 }
 

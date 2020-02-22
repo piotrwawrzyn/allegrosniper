@@ -5,6 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "chalk": "^3.0.0",
+    "cli-table2": "^0.2.0",
     "log-to-file": "^2.0.2",
     "puppeteer": "^2.0.0"
   },
