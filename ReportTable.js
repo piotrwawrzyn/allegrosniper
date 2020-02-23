@@ -58,9 +58,9 @@ class ReportTable {
 
       case TO_REPORT.STATUS: {
         displayString =
-          value === FetchingResult.ERROR
-            ? chalk.redBright(value)
-            : chalk.greenBright(value);
+          value === FetchingResult.BUYING_ERROR
+            ? chalk.redBright(value.toUpperCase())
+            : chalk.greenBright(value.toUpperCase());
         break;
       }
 

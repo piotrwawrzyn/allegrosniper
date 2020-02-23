@@ -15,11 +15,11 @@ class Bot {
     this.maximalBuyingPrice = maximalBuyingPrice;
     this.user = user;
     this.msInterval = msInterval;
-    this.run = true;
-    this.auctionIdsMap = new Map();
     this.dateStarted = new Date();
 
     // Create a map connecting auction urls with auction ids
+    this.auctionIdsMap = new Map();
+
     for (const auction of this.auctions) {
       this.auctionIdsMap.set(auction, getAuctionIdFromUrl(auction));
     }
@@ -90,12 +90,10 @@ class Bot {
     this.page = await context.newPage();
   }
 
-  async createTransaction(auctionUrl) {
-    const auctionId = this.auctionIdsMap.get(auctionUrl);
-
+  async createTransaction(auctionUrl, id) {
     const auction = {
       url: auctionUrl,
-      id: auctionId,
+      id,
       expectedPrice: this.maximalBuyingPrice,
       buyer: this.user
     };
@@ -137,15 +135,18 @@ class Bot {
       const data = await response.text();
 
       // Get auction information
-      const [result] = data.match(/(?<=JSON\.parse\(\s*).*?(?=\s*\))/);
 
-      if (!result)
+      const result = data.match(/(?<=JSON\.parse\(\s*).*?(?=\s*\))/);
+
+      if (result === null)
         return {
           result: 'error',
           message: `Can't parse auction price because no JSON has been found!`
         };
 
-      const transactionObject = JSON.parse(JSON.parse(result));
+      const jsonStringToParse = result[0];
+
+      const transactionObject = JSON.parse(JSON.parse(jsonStringToParse));
 
       // I assume that there will always be exactly ONE >>order<< in the array
       if (!transactionObject) {
@@ -237,7 +238,7 @@ class Bot {
         }
 
         return {
-          result: 'successfulyBought',
+          result: 'success',
           message: `Item has been successfuly bought for ${totalPrice} PLN`
         };
       } else {
@@ -287,8 +288,6 @@ class Bot {
   }
 
   async stop() {
-    this.run = false;
-
     await this.page.close();
 
     // Remove bot instance from the collection
@@ -302,21 +301,29 @@ class Bot {
   }
 
   async attemptToBuy(auction) {
-    this.log(`Let me snipe auction ${this.auctionIdsMap.get(auction)}...`);
+    const id = this.auctionIdsMap.get(auction)
+      ? this.auctionIdsMap.get(auction)
+      : getAuctionIdFromUrl(auction);
+
+    this.log(`Let me snipe auction ${id}...`);
 
     let result, message;
 
     try {
-      const outcome = await this.createTransaction(auction);
+      // This try catch block is just in case something really unexpected happens
+      const outcome = await this.createTransaction(auction, id);
       result = outcome.result;
       message = outcome.message;
     } catch (err) {
+      this.log('Unexpected error caught while attempting to buy');
       this.log(err, 'error');
+      await sleep(30000);
       return;
     }
 
+    // If bought or error while trying to buy then push new record to report table
     if (
-      result === FetchingResult.ERROR ||
+      result === FetchingResult.BUYING_ERROR ||
       result === FetchingResult.SUCCESSFULY_BOUGHT
     ) {
       Bot.reportTable.push({
@@ -328,6 +335,7 @@ class Bot {
       });
     }
 
+    // Handle what happens next
     switch (result) {
       case FetchingResult.TOO_EXPENSIVE: {
         this.log('Too expensive. ' + message);
@@ -342,27 +350,36 @@ class Bot {
         break;
       }
 
-      case FetchingResult.ERROR: {
+      case FetchingResult.BUYING_ERROR: {
         this.log('Error while trying to buy. ' + message, 'error');
 
         await this.stop();
 
-        break;
+        return true;
+      }
+
+      case FetchingResult.FETCHING_ERROR: {
+        this.log('Error while fetching. ' + message, 'error');
+        this.log('Restarting in 10...');
+        await this.restart(10);
+
+        return true;
       }
     }
   }
 
   async scan() {
-    while (this.run) {
+    while (true) {
       for (const auction of this.auctions) {
-        await this.attemptToBuy(auction);
+        const breakLoop = await this.attemptToBuy(auction);
+        if (breakLoop) break;
       }
 
-      if (this.run) {
-        this.log(`Sleeping for ${this.msInterval}...`);
-        await sleep(this.msInterval);
-      }
+      this.log(`Sleeping for ${this.msInterval}...`);
+      await sleep(this.msInterval);
     }
+
+    this.log('Exiting scanning loop...');
   }
 
   async start() {

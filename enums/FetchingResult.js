@@ -1,7 +1,8 @@
 const FetchingResult = {
   TOO_EXPENSIVE: 'tooExpensive',
-  ERROR: 'error',
-  SUCCESSFULY_BOUGHT: 'successfulyBought'
+  FETCHING_ERROR: 'fetchingError',
+  BUYING_ERROR: 'error',
+  SUCCESSFULY_BOUGHT: 'success'
 };
 
 module.exports = FetchingResult;

@@ -2,8 +2,13 @@ const readline = require('readline');
 const chalk = require('chalk');
 const fs = require('fs');
 
+const VERSIONS = {
+  v200: '2.0.0',
+  v210: '2.1.0'
+};
+
 const patchnotesCookiePath = './cookie';
-const currentVersion = '2.0.0';
+const currentVersion = VERSIONS.v210;
 const patchnotes = {};
 
 const addPatchNote = (patchnote, version) => {
@@ -16,27 +21,35 @@ const addPatchNote = (patchnote, version) => {
 const addPatchNotes = () => {
   addPatchNote(
     'You can now use many accounts (10+) with no performence losses',
-    '2.0.0'
+    VERSIONS.v200
   );
   addPatchNote(
     'Bot now uses basic HTTP methods (POST, PUT, GET) to check the price and buy an item',
-    '2.0.0'
+    VERSIONS.v200
   );
   addPatchNote(
     'Puppeteer (headless browser) is now only used to authenticate and stay in the browser enviroment',
-    '2.0.0'
+    VERSIONS.v200
   );
   addPatchNote(
     `Bot speed and performance are now increased by over 400%`,
-    '2.0.0'
+    VERSIONS.v200
   );
   addPatchNote(
     'Console colored messages, patchnotes and ASCII art introduction logo',
-    '2.0.0'
+    VERSIONS.v200
   );
   addPatchNote(
     `You now don't have to have any payment method selected on the account`,
-    '2.0.0'
+    VERSIONS.v200
+  );
+  addPatchNote(
+    'A table with report will now appear after all bots finish their jobs',
+    VERSIONS.v210
+  );
+  addPatchNote(
+    'You can now scan all auctions from the given seller, check out new option in setup.js',
+    VERSIONS.v210
   );
 };
 
