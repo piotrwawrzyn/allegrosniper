@@ -51,6 +51,10 @@ const addPatchNotes = () => {
     'You can now scan all auctions from the given seller, check out new option in setup.js',
     VERSIONS.v210
   );
+  addPatchNote(
+    'Bot now uses just one leading account which checks price instead of scanning with all accounts',
+    VERSIONS.v210
+  );
 };
 
 const displayPatchNotes = () => {

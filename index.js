@@ -7,8 +7,8 @@ const {
   headless,
   sellerUsername
 } = setup;
-const Bot = require('./Bot');
-const ScanningBot = require('./ScanningBot');
+const AuctionScanner = require('./AuctionScanner');
+const UserScanner = require('./UserScanner');
 const users = require('./users');
 const consoleLogIntro = require('./utils/consoleLogIntro');
 const showPatchNotes = require('./utils/showPatchNotes');
@@ -19,23 +19,28 @@ const config = { msInterval };
   consoleLogIntro();
   await showPatchNotes();
 
-  await Bot.launchBrowser(headless);
+  await AuctionScanner.launchBrowser(headless);
 
   for (const [index, user] of users.entries()) {
     if (accountsToUseCount >= 0 && index >= accountsToUseCount) break;
 
     if (!sellerUsername) {
-      const bot = new Bot(auctions, maximalBuyingPrice, user, config);
-      bot.start();
+      const auctionScanner = new AuctionScanner(
+        auctions,
+        maximalBuyingPrice,
+        user,
+        config
+      );
+      auctionScanner.start();
     } else {
-      const bot = new ScanningBot(
+      const userScanner = new UserScanner(
         [],
         maximalBuyingPrice,
         user,
         config,
         sellerUsername
       );
-      bot.start();
+      userScanner.start();
     }
   }
 })();

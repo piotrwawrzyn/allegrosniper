@@ -1,11 +1,12 @@
-const Bot = require('./Bot');
+const AuctionScanner = require('./AuctionScanner');
 const sleep = require('./utils/sleep');
+const FetchingResult = require('./enums/FetchingResult');
 
 /**
- * This class extends bot by a new functionality.
- * Bot now has the abillity to scan through all auctions by the given seller and try to find any auction that meets your price condition.
+ * This class extends auction scanner by a new functionality.
+ * Scanner now has the abillity to scan through all auctions by the given seller and try to find any auction that meets your price condition.
  */
-class ScanningBot extends Bot {
+class UserScanner extends AuctionScanner {
   constructor(auctions, maximalBuyingPrice, user, config, sellerUsername) {
     super(auctions, maximalBuyingPrice, user, config);
     this.sellerUsername = sellerUsername;
@@ -44,9 +45,14 @@ class ScanningBot extends Bot {
         });
 
         const data = await response.json();
-        const nonPromoItems =
-          data.dataSources['listing-api V3:allegro.listing:3.0'].data.items
-            .regular;
+
+        // TODO: Add error handling when no such user exist better then break
+        if (!data.dataSources['listing-api V3:allegro.listing:3.0']) break;
+
+        const items =
+          data.dataSources['listing-api V3:allegro.listing:3.0'].data.items;
+
+        const nonPromoItems = items.regular;
 
         if (nonPromoItems.length) {
           onlyPromoItemsFound = false;
@@ -57,12 +63,27 @@ class ScanningBot extends Bot {
             cheapestItem.sellingMode.buyNow.price.amount
           );
 
+          console.log(cheapestItem);
+
           if (cheapestItemPrice <= params.maximalBuyingPrice) {
             return cheapestItem.url;
           } else {
             return null;
           }
         } else {
+          // Check if there are any auctions on this page, if not break the loop
+          let noItemsAtAll = true;
+          for (const key in items) {
+            if (items[key].length !== 0) {
+              noItemsAtAll = false;
+              break;
+            }
+          }
+
+          if (noItemsAtAll) {
+            break;
+          }
+
           page++;
         }
       }
@@ -74,7 +95,7 @@ class ScanningBot extends Bot {
   async scan() {
     this.log('Waiting for URL with auction...');
     while (true) {
-      if (Bot.runningInstances[0] === this) {
+      if (AuctionScanner.runningInstances[0] === this) {
         // If leading bot (first in the running instances array) then try to find the auction
         this.log(
           `Let me try to find any auction from ${this.sellerUsername} with price <= ${this.maximalBuyingPrice} PLN`
@@ -84,7 +105,7 @@ class ScanningBot extends Bot {
 
         if (urlFound) {
           this.log(`Found an auction meeting price conditions: ${urlFound}`);
-          ScanningBot.urlFound = urlFound;
+          UserScanner.urlFound = urlFound;
         }
 
         // Sleep aditional time to avoid request spam
@@ -92,9 +113,16 @@ class ScanningBot extends Bot {
       }
 
       // Any bot: check if there is a link found by the leading bot
-      if (ScanningBot.urlFound) {
-        await this.attemptToBuy(ScanningBot.urlFound);
-        break;
+      if (UserScanner.urlFound) {
+        const { result } = await this.attemptToBuy(UserScanner.urlFound);
+
+        if (result === FetchingResult.SUCCESSFULY_BOUGHT) {
+          break;
+        } else {
+          this.log('Unsuccessful purchase with result: ' + result, 'error');
+          this.log(`Let's go back to scanning`);
+          continue;
+        }
       }
 
       // Sleep just a little bit
@@ -103,4 +131,4 @@ class ScanningBot extends Bot {
   }
 }
 
-module.exports = ScanningBot;
+module.exports = UserScanner;

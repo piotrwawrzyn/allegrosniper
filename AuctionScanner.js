@@ -5,9 +5,9 @@ const sleep = require('./utils/sleep');
 const FetchingResult = require('./enums/FetchingResult');
 const ReportTable = require('./ReportTable');
 
-class Bot {
+class AuctionScanner {
   constructor(auctions, maximalBuyingPrice, user, config) {
-    Bot.runningInstances.push(this);
+    AuctionScanner.runningInstances.push(this);
 
     const { msInterval } = config;
 
@@ -28,10 +28,10 @@ class Bot {
   static async launchBrowser(headless) {
     log('Creating browser instance');
 
-    Bot.runningInstances = [];
-    Bot.reportTable = new ReportTable();
+    AuctionScanner.runningInstances = [];
+    AuctionScanner.reportTable = new ReportTable();
 
-    Bot.browser = await puppeteer.launch({
+    AuctionScanner.browser = await puppeteer.launch({
       headless,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
@@ -85,17 +85,18 @@ class Bot {
 
   async openNewIncognitoPage() {
     this.log('Opening new browser context');
-    const context = await Bot.browser.createIncognitoBrowserContext();
+    const context = await AuctionScanner.browser.createIncognitoBrowserContext();
 
     this.page = await context.newPage();
   }
 
-  async createTransaction(auctionUrl, id) {
+  async createTransaction(auctionUrl, id, justCheckThePrice) {
     const auction = {
       url: auctionUrl,
       id,
       expectedPrice: this.maximalBuyingPrice,
-      buyer: this.user
+      buyer: this.user,
+      justCheckThePrice
     };
 
     this.lastFetchingStarted = new Date();
@@ -171,6 +172,10 @@ class Bot {
       if (!order || !offer) return;
 
       const { totalPrice } = offer;
+
+      if (auction.justCheckThePrice) {
+        return { result: 'priceChecked', message: totalPrice };
+      }
 
       if (totalPrice <= auction.expectedPrice) {
         // This is a good time to buy
@@ -291,27 +296,37 @@ class Bot {
     await this.page.close();
 
     // Remove bot instance from the collection
-    Bot.runningInstances = Bot.runningInstances.filter(inst => inst !== this);
+    AuctionScanner.runningInstances = AuctionScanner.runningInstances.filter(
+      inst => inst !== this
+    );
 
     // Was this the last bot running?
-    if (!Bot.runningInstances.length) {
-      Bot.reportTable.display();
-      await Bot.browser.close();
+    if (!AuctionScanner.runningInstances.length) {
+      AuctionScanner.reportTable.display();
+      await AuctionScanner.browser.close();
     }
   }
 
-  async attemptToBuy(auction) {
+  async attemptToBuy(auction, justCheckThePrice = false) {
     const id = this.auctionIdsMap.get(auction)
       ? this.auctionIdsMap.get(auction)
       : getAuctionIdFromUrl(auction);
 
-    this.log(`Let me snipe auction ${id}...`);
+    if (justCheckThePrice) {
+      this.log(`Let me check the price on auction ${id}...`);
+    } else {
+      this.log(`Let me snipe down auction ${id}...`);
+    }
 
     let result, message;
 
     try {
       // This try catch block is just in case something really unexpected happens
-      const outcome = await this.createTransaction(auction, id);
+      const outcome = await this.createTransaction(
+        auction,
+        id,
+        justCheckThePrice
+      );
       result = outcome.result;
       message = outcome.message;
     } catch (err) {
@@ -326,7 +341,7 @@ class Bot {
       result === FetchingResult.BUYING_ERROR ||
       result === FetchingResult.SUCCESSFULY_BOUGHT
     ) {
-      Bot.reportTable.push({
+      AuctionScanner.reportTable.push({
         user: this.user.email,
         status: result,
         buyingTime: new Date().getTime() - this.lastFetchingStarted.getTime(),
@@ -337,9 +352,17 @@ class Bot {
 
     // Handle what happens next
     switch (result) {
+      case FetchingResult.PRICE_CHECKED: {
+        return {
+          url: auction,
+          price: message,
+          result: FetchingResult.PRICE_CHECKED
+        };
+      }
+
       case FetchingResult.TOO_EXPENSIVE: {
         this.log('Too expensive. ' + message);
-        break;
+        return { result: FetchingResult.TOO_EXPENSIVE };
       }
 
       case FetchingResult.SUCCESSFULY_BOUGHT: {
@@ -347,7 +370,7 @@ class Bot {
 
         await this.stop();
 
-        break;
+        return { result: FetchingResult.SUCCESSFULY_BOUGHT };
       }
 
       case FetchingResult.BUYING_ERROR: {
@@ -355,7 +378,7 @@ class Bot {
 
         await this.stop();
 
-        return true;
+        return { result: FetchingResult.BUYING_ERROR };
       }
 
       case FetchingResult.FETCHING_ERROR: {
@@ -363,23 +386,43 @@ class Bot {
         this.log('Restarting in 10...');
         await this.restart(10);
 
-        return true;
+        return { result: FetchingResult.FETCHING_ERROR };
       }
     }
   }
 
   async scan() {
     while (true) {
-      for (const auction of this.auctions) {
-        const breakLoop = await this.attemptToBuy(auction);
-        if (breakLoop) break;
+      if (AuctionScanner.runningInstances[0] === this) {
+        // I'm the leading bot, I need to check if the price is ok
+        for (const auction of this.auctions) {
+          const { url, price } = await this.attemptToBuy(auction, true);
+
+          if (price <= this.maximalBuyingPrice) {
+            if (AuctionScanner.runningInstances.length > 1) {
+              this.log('Woaaahh, price is great! I have to notify other bots!');
+              this.log(AuctionScanner.toString(true) + ', you there guys?');
+            }
+
+            AuctionScanner.urlToBuy = url;
+            break;
+          } else {
+            this.log(`Price on auction ${url} sux (${price} PLN)`);
+            const timeToSleep = this.msInterval / this.auctions.length;
+            this.log(`Sleeping for ${timeToSleep}...`);
+            await sleep(timeToSleep);
+          }
+        }
       }
 
-      this.log(`Sleeping for ${this.msInterval}...`);
-      await sleep(this.msInterval);
-    }
+      if (AuctionScanner.urlToBuy) {
+        this.log(`Hyped. Let's get this!`);
+        await this.attemptToBuy(AuctionScanner.urlToBuy);
+        break;
+      }
 
-    this.log('Exiting scanning loop...');
+      await sleep(100);
+    }
   }
 
   async start() {
@@ -389,6 +432,21 @@ class Bot {
 
     this.scan();
   }
+
+  static toString(skipFirst) {
+    let bots = '';
+    for (let i = 0; i < AuctionScanner.runningInstances.length; i++) {
+      if (i === 0 && skipFirst) continue;
+
+      bots += AuctionScanner.runningInstances[i].user.email;
+
+      if (i !== AuctionScanner.runningInstances.length - 1) {
+        bots += ', ';
+      }
+    }
+
+    return bots;
+  }
 }
 
-module.exports = Bot;
+module.exports = AuctionScanner;
