@@ -5,6 +5,8 @@ const FetchingResult = require('./enums/FetchingResult');
 /**
  * This class extends auction scanner by a new functionality.
  * Scanner now has the abillity to scan through all auctions by the given seller and try to find any auction that meets your price condition.
+ *
+ * Warning: This feature is experimental
  */
 class UserScanner extends AuctionScanner {
   constructor(auctions, maximalBuyingPrice, user, config, sellerUsername) {

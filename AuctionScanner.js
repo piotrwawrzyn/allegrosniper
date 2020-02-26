@@ -137,7 +137,7 @@ class AuctionScanner {
 
       // Get auction information
 
-      const result = data.match(/(?<=JSON\.parse\(\s*).*?(?=\s*\))/);
+      const result = data.match(/(?<=JSON\.parse\(\s*).*?(?=\s*\)\s)/);
 
       if (result === null)
         return {
@@ -146,6 +146,8 @@ class AuctionScanner {
         };
 
       const jsonStringToParse = result[0];
+
+      console.log(result);
 
       const transactionObject = JSON.parse(JSON.parse(jsonStringToParse));
 
@@ -313,7 +315,7 @@ class AuctionScanner {
       : getAuctionIdFromUrl(auction);
 
     if (justCheckThePrice) {
-      this.log(`Let me check the price on auction ${id}...`);
+      this.log(`Let me check the price on auction ${id}...`, 'leader');
     } else {
       this.log(`Let me snipe down auction ${id}...`);
     }
@@ -393,23 +395,37 @@ class AuctionScanner {
 
   async scan() {
     while (true) {
-      if (AuctionScanner.runningInstances[0] === this) {
+      if (
+        AuctionScanner.runningInstances[0] === this &&
+        !AuctionScanner.urlToBuy
+      ) {
         // I'm the leading bot, I need to check if the price is ok
         for (const auction of this.auctions) {
           const { url, price } = await this.attemptToBuy(auction, true);
 
           if (price <= this.maximalBuyingPrice) {
             if (AuctionScanner.runningInstances.length > 1) {
-              this.log('Woaaahh, price is great! I have to notify other bots!');
-              this.log(AuctionScanner.toString(true) + ', you there guys?');
+              this.log(
+                'Woaaahh, price is great! I have to notify other bots!',
+                'leader'
+              );
+              this.log(
+                AuctionScanner.toString(true) + ', you there guys?',
+                'leader'
+              );
             }
 
             AuctionScanner.urlToBuy = url;
             break;
           } else {
-            this.log(`Price on auction ${url} sux (${price} PLN)`);
+            this.log(
+              `Price on auction ${this.auctionIdsMap.get(
+                url
+              )} sux (${price} PLN)`,
+              'leader'
+            );
             const timeToSleep = this.msInterval / this.auctions.length;
-            this.log(`Sleeping for ${timeToSleep}...`);
+            this.log(`Sleeping for ${timeToSleep}...`, 'leader');
             await sleep(timeToSleep);
           }
         }
@@ -417,8 +433,21 @@ class AuctionScanner {
 
       if (AuctionScanner.urlToBuy) {
         this.log(`Hyped. Let's get this!`);
-        await this.attemptToBuy(AuctionScanner.urlToBuy);
-        break;
+        const outcome = await this.attemptToBuy(AuctionScanner.urlToBuy);
+
+        let result = null;
+
+        if (outcome) {
+          result = outcome.result;
+        }
+
+        if (result === FetchingResult.SUCCESSFULY_BOUGHT) {
+          break;
+        } else {
+          this.log('Unsuccessful purchase with result: ' + result, 'error');
+          this.log(`Let's try again`);
+          continue;
+        }
       }
 
       await sleep(100);
@@ -429,6 +458,10 @@ class AuctionScanner {
     const successfulInit = await this.init();
 
     if (!successfulInit) return;
+
+    if (AuctionScanner.runningInstances[0] !== this) {
+      this.log('Waiting for the notification from the leader');
+    }
 
     this.scan();
   }

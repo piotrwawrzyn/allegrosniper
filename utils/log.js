@@ -2,7 +2,11 @@ const logToFile = require('log-to-file');
 const chalk = require('chalk');
 
 const log = async (message, user, special) => {
-  const email = user ? `[${user.email}] ` : '';
+  const email = user
+    ? `[${user.email}] ${
+        special === 'leader' ? `${chalk.magenta('[LEADER] ')}` : ''
+      }`
+    : '';
   const today = new Date();
   const time = `[${today.getHours()}:${today.getMinutes()}:${today.getSeconds()}]`;
   const msgToFile = email + ' ' + time + ' ' + message;
