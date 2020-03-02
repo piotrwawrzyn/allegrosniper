@@ -393,6 +393,15 @@ class AuctionScanner {
     }
   }
 
+  logNotification() {
+    this.log('Woaaahh, price is great! I have to notify other bots!', 'leader');
+    this.log(AuctionScanner.toString(true) + ', you there guys?', 'leader');
+  }
+
+  logNotificationResponse() {
+    this.log(`Hyped. Let's get this!`);
+  }
+
   async scan() {
     while (true) {
       if (
@@ -405,14 +414,7 @@ class AuctionScanner {
 
           if (price <= this.maximalBuyingPrice) {
             if (AuctionScanner.runningInstances.length > 1) {
-              this.log(
-                'Woaaahh, price is great! I have to notify other bots!',
-                'leader'
-              );
-              this.log(
-                AuctionScanner.toString(true) + ', you there guys?',
-                'leader'
-              );
+              this.logNotification();
             }
 
             AuctionScanner.urlToBuy = url;
@@ -424,7 +426,9 @@ class AuctionScanner {
               )} sux (${price} PLN)`,
               'leader'
             );
-            const timeToSleep = this.msInterval / this.auctions.length;
+            const timeToSleep = Math.round(
+              this.msInterval / this.auctions.length
+            );
             this.log(`Sleeping for ${timeToSleep}...`, 'leader');
             await sleep(timeToSleep);
           }
@@ -432,7 +436,7 @@ class AuctionScanner {
       }
 
       if (AuctionScanner.urlToBuy) {
-        this.log(`Hyped. Let's get this!`);
+        this.logNotificationResponse();
         const outcome = await this.attemptToBuy(AuctionScanner.urlToBuy);
 
         let result = null;

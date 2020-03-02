@@ -4,11 +4,12 @@ const fs = require('fs');
 
 const VERSIONS = {
   v200: '2.0.0',
-  v210: '2.1.0'
+  v210: '2.1.0',
+  v220: '2.2.0'
 };
 
 const patchnotesCookiePath = './cookie';
-const currentVersion = VERSIONS.v210;
+const currentVersion = VERSIONS.v220;
 const patchnotes = {};
 
 const addPatchNote = (patchnote, version) => {
@@ -55,6 +56,16 @@ const addPatchNotes = () => {
     'Bot now uses just one leading account which checks price instead of scanning with all accounts',
     VERSIONS.v210
   );
+  addPatchNote(
+    `New feature: scan whole allegro with search query of your choice when you don't know the exact auction`,
+    VERSIONS.v220
+  );
+  addPatchNote(
+    `Removed feature: scanning all auctions of chosen seller (wasn't working efficiently because of server side caching)`,
+    VERSIONS.v220
+  );
+  addPatchNote('Fix: Interval will always be an integer now', VERSIONS.v220);
+  addPatchNote('Brand new slick logo', VERSIONS.v220);
 };
 
 const displayPatchNotes = () => {
@@ -89,7 +100,7 @@ const showPatchNotes = () => {
   };
 
   return new Promise(resolve =>
-    cmdInterface.question('Confirm patch notes by clicking any key', () => {
+    cmdInterface.question('Confirm patch notes by clicking enter', () => {
       cmdInterface.close();
       resolve();
     })

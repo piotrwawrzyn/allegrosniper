@@ -5,10 +5,10 @@ const {
   msInterval,
   accountsToUseCount,
   headless,
-  sellerUsername
+  scanQuery
 } = setup;
 const AuctionScanner = require('./AuctionScanner');
-const UserScanner = require('./UserScanner');
+const QueryScanner = require('./QueryScanner');
 const users = require('./users');
 const consoleLogIntro = require('./utils/consoleLogIntro');
 const showPatchNotes = require('./utils/showPatchNotes');
@@ -24,7 +24,7 @@ const config = { msInterval };
   for (const [index, user] of users.entries()) {
     if (accountsToUseCount >= 0 && index >= accountsToUseCount) break;
 
-    if (!sellerUsername) {
+    if (!scanQuery) {
       const auctionScanner = new AuctionScanner(
         auctions,
         maximalBuyingPrice,
@@ -33,12 +33,12 @@ const config = { msInterval };
       );
       auctionScanner.start();
     } else {
-      const userScanner = new UserScanner(
+      const userScanner = new QueryScanner(
         [],
         maximalBuyingPrice,
         user,
         config,
-        sellerUsername
+        scanQuery
       );
       userScanner.start();
     }
