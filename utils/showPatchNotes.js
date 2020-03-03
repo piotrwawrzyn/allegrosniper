@@ -5,11 +5,12 @@ const fs = require('fs');
 const VERSIONS = {
   v200: '2.0.0',
   v210: '2.1.0',
-  v220: '2.2.0'
+  v220: '2.2.0',
+  v221: '2.2.1'
 };
 
 const patchnotesCookiePath = './cookie';
-const currentVersion = VERSIONS.v220;
+const currentVersion = VERSIONS.v221;
 const patchnotes = {};
 
 const addPatchNote = (patchnote, version) => {
@@ -66,6 +67,23 @@ const addPatchNotes = () => {
   );
   addPatchNote('Fix: Interval will always be an integer now', VERSIONS.v220);
   addPatchNote('Brand new slick logo', VERSIONS.v220);
+  addPatchNote(
+    'Added safety check to avoid unexpected bot crash',
+    VERSIONS.v221
+  );
+  addPatchNote('Added configurable snipe quantity per account', VERSIONS.v221);
+  addPatchNote(
+    'Fixed linux incompatibility with new line character splitting',
+    VERSIONS.v221
+  );
+  addPatchNote(
+    'Add auctions in the auctions.txt file (not in setup.js) anymore',
+    VERSIONS.v221
+  );
+  addPatchNote(
+    `users.txt and auctions.txt are now trimmed so don't be afraid of a whitespace at the end of the line`,
+    VERSIONS.v221
+  );
 };
 
 const displayPatchNotes = () => {

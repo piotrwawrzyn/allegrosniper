@@ -1,11 +1,10 @@
 const User = require('./User');
-const fs = require('fs');
+const readFileAndSplitLines = require('./utils/readFileAndSplitLines');
+const trimEach = require('./utils/trimEach');
 
 const users = [];
 
-const usersRecords = fs.readFileSync('users.txt', { encoding: 'utf-8' });
-
-const usersRecordsArray = usersRecords.split('\n');
+const usersRecordsArray = trimEach(readFileAndSplitLines('users.txt'));
 
 usersRecordsArray.forEach(function(record) {
   const userInfo = record.split(':');

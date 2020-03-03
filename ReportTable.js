@@ -44,8 +44,6 @@ class ReportTable {
       case TO_REPORT.DATE_FINISHED:
       case TO_REPORT.DATE_STARTED: {
         // This record is a date
-        // displayString = `${value.getDate()}.${value.getMonth() +
-        //   1}.${value.getFullYear()} | ${value.getHours()}:${value.getMinutes()}:${value.getSeconds()}:${value.getMilliseconds()}`;
         displayString = `${value.getHours()}:${value.getMinutes()}:${value.getSeconds()}:${value.getMilliseconds()}`;
         break;
       }

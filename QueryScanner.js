@@ -3,8 +3,11 @@ const sleep = require('./utils/sleep');
 const FetchingResult = require('./enums/FetchingResult');
 
 class QueryScanner extends AuctionScanner {
-  constructor(auctions, maximalBuyingPrice, user, config, scanQuery) {
-    super(auctions, maximalBuyingPrice, user, config);
+  constructor(auctions, user, config) {
+    super(auctions, user, config);
+
+    const { scanQuery } = config;
+
     this.scanQuery = scanQuery;
   }
 
@@ -119,7 +122,6 @@ class QueryScanner extends AuctionScanner {
         );
 
         const urlFound = await this.scanAllegroWithQuery();
-        // await sleep(1000000);
 
         if (urlFound) {
           this.log(

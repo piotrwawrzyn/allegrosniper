@@ -6,15 +6,16 @@ const FetchingResult = require('./enums/FetchingResult');
 const ReportTable = require('./ReportTable');
 
 class AuctionScanner {
-  constructor(auctions, maximalBuyingPrice, user, config) {
+  constructor(auctions, user, config) {
     AuctionScanner.runningInstances.push(this);
 
-    const { msInterval } = config;
+    const { msInterval, quantityPerAccount, maximalBuyingPrice } = config;
 
     this.auctions = auctions;
     this.maximalBuyingPrice = maximalBuyingPrice;
     this.user = user;
     this.msInterval = msInterval;
+    this.quantityPerAccount = quantityPerAccount;
     this.dateStarted = new Date();
 
     // Create a map connecting auction urls with auction ids
@@ -96,7 +97,8 @@ class AuctionScanner {
       id,
       expectedPrice: this.maximalBuyingPrice,
       buyer: this.user,
-      justCheckThePrice
+      justCheckThePrice,
+      quantity: this.quantityPerAccount
     };
 
     this.lastFetchingStarted = new Date();
@@ -122,7 +124,7 @@ class AuctionScanner {
           },
           referrer: auction.url,
           referrerPolicy: 'unsafe-url',
-          body: `item_id=${auction.id}&guest=1&quantity=1`,
+          body: `item_id=${auction.id}&guest=1&quantity=${auction.quantity}`,
           method: 'POST',
           mode: 'cors'
         });
@@ -146,8 +148,6 @@ class AuctionScanner {
         };
 
       const jsonStringToParse = result[0];
-
-      console.log(result);
 
       const transactionObject = JSON.parse(JSON.parse(jsonStringToParse));
 
@@ -175,11 +175,13 @@ class AuctionScanner {
 
       const { totalPrice } = offer;
 
+      const pricePerItem = totalPrice / auction.quantity;
+
       if (auction.justCheckThePrice) {
-        return { result: 'priceChecked', message: totalPrice };
+        return { result: 'priceChecked', message: pricePerItem };
       }
 
-      if (totalPrice <= auction.expectedPrice) {
+      if (pricePerItem <= auction.expectedPrice) {
         // This is a good time to buy
         const transactionId = transactionObject.id;
 
@@ -246,14 +248,14 @@ class AuctionScanner {
 
         return {
           result: 'success',
-          message: `Item has been successfuly bought for ${totalPrice} PLN`
+          message: `${auction.quantity}x Item has been successfuly bought for ${pricePerItem} PLN`
         };
       } else {
         // Well, price is meh let's proceed
 
         return {
           result: 'tooExpensive',
-          message: `The price is ${totalPrice} PLN and it sux`
+          message: `The price is ${pricePerItem} PLN and it sux`
         };
       }
     }, auction);
@@ -410,7 +412,12 @@ class AuctionScanner {
       ) {
         // I'm the leading bot, I need to check if the price is ok
         for (const auction of this.auctions) {
-          const { url, price } = await this.attemptToBuy(auction, true);
+          const auctionData = await this.attemptToBuy(auction, true);
+
+          // Safety check
+          if (!auctionData) continue;
+
+          const { url, price } = auctionData;
 
           if (price <= this.maximalBuyingPrice) {
             if (AuctionScanner.runningInstances.length > 1) {
