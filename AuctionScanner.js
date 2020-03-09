@@ -175,7 +175,7 @@ class AuctionScanner {
 
       const { totalPrice } = offer;
 
-      const pricePerItem = totalPrice / auction.quantity;
+      const pricePerItem = (totalPrice / auction.quantity).toFixed(2);
 
       if (auction.justCheckThePrice) {
         return { result: 'priceChecked', message: pricePerItem };

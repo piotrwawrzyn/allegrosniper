@@ -1,5 +1,5 @@
 const setup = {
-  quantityPerAccount: 2,
+  quantityPerAccount: 1,
   scanQuery: '',
   /* Fill scan query only if you don't know the specific auction but you know possible search query to get to an auction.
      With this property set up bot will ignore auctions array and try to find any auction on allegro matching your price conditions AND the provided query.
@@ -10,7 +10,7 @@ const setup = {
   */
   maximalBuyingPrice: 1,
   msInterval: 1000,
-  accountsToUseCount: 1, // with value of -1 will use all available accounts
+  accountsToUseCount: -1, // with value of -1 will use all available accounts
   headless: true
 };
 

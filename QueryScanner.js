@@ -29,14 +29,18 @@ class QueryScanner extends AuctionScanner {
       let page = 1;
 
       // Maximum number of pages to look at, limited to prevent request spamming
-      const MAX_PAGES_TO_CHECK = 3;
+      const maxPagesToCheck = 3;
 
-      const ITERATION_THROTTLE_IN_MS = 15;
+      const iterationThrottleInMs = 15;
+
+      const onlyOfficialSellers = true;
 
       let lastIterationItems;
 
-      while (page <= MAX_PAGES_TO_CHECK) {
-        const url = `https://allegro.pl/listing?string=${params.query}&order=p&bmatch=baseline-cl-eyesa2-dict43-ele-1-3-0205&p=${page}`;
+      while (page <= maxPagesToCheck) {
+        const url = `https://allegro.pl/listing?string=${params.query}&sm=${
+          onlyOfficialSellers ? 1 : 0
+        }&order=p&bmatch=baseline-cl-eyesa2-dict43-ele-1-3-0205&p=${page}`;
 
         response = await fetch(url, {
           credentials: 'include',
@@ -82,7 +86,7 @@ class QueryScanner extends AuctionScanner {
           } else {
             page++;
             // Throttle a little bit to avoid ip ban
-            await sleep(ITERATION_THROTTLE_IN_MS);
+            await sleep(iterationThrottleInMs);
 
             lastIterationItems = items;
             continue;
