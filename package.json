@@ -11,7 +11,9 @@
     "puppeteer": "^2.0.0"
   },
   "devDependencies": {},
-  "scripts": {},
+  "scripts": {
+    "start": "node index.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC"
