@@ -53,3 +53,9 @@ CLI bot that will buy you an item from [allegro.pl](https://allegro.pl) as soon 
 	<strong>Tip:</strong> With value of -1 will use all available accounts</td></tr>
 	<tr><td>headless</td><td>boolean</td><td>Whether to run the browser in the headless mode or not. Use false only when debugging</td></tr>
 </table>
+
+## Usage
+
+After setup all what's left is to run the start command.
+
+`npm run start`
