@@ -2,6 +2,8 @@
 
 CLI bot that will buy you an item from [allegro.pl](https://allegro.pl) as soon as it reaches a certain price.
 
+![allegrosniper preview image](https://user-images.githubusercontent.com/42513971/82207666-81863380-990a-11ea-96a7-9ec1c6185c0b.png)
+
 ## Features
 
 - Supports multiple accounts
