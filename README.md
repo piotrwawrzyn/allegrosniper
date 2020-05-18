@@ -15,7 +15,7 @@ CLI bot that will buy you an item from [allegro.pl](https://allegro.pl) as soon 
 - Highly configurable
 - Works on both linux and PC
 
-## Instalation
+## Installation
 
 1. Clone the repo  <br><br>`git clone https://github.com/piotrwawrzyn/allegrosniper.git`<br>
 
