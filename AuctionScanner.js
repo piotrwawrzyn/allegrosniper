@@ -141,11 +141,16 @@ class AuctionScanner {
 
       const result = data.match(/(?<=JSON\.parse\(\s*).*?(?=\s*\)\s)/);
 
-      if (result === null)
+      if (result === null) {
+        if (auction.justCheckThePrice) {
+          return { result: 'priceChecked', message: 999999 };
+        }
+
         return {
           result: 'error',
           message: `Can't parse auction price because no JSON has been found!`
         };
+      }
 
       const jsonStringToParse = result[0];
 
@@ -268,7 +273,9 @@ class AuctionScanner {
     await this.page.goto('http://allegro.pl/login/auth');
 
     // Close popup
+    await this.page.waitFor(1000);
     await this.closePopup();
+    await this.page.waitFor(1000);
 
     // Fill login data and submit
     await this.fillloginData(this.user);
