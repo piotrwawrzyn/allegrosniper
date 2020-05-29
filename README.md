@@ -1,6 +1,8 @@
 # allegrosniper
 
-CLI bot that will buy you an item from [allegro.pl](https://allegro.pl) as soon as it reaches a certain price.
+CLI bot that will buy you an item from [allegro.pl](https://allegro.pl) as soon as it reaches your desired price.
+
+![allegrosniper preview image](https://user-images.githubusercontent.com/42513971/82207666-81863380-990a-11ea-96a7-9ec1c6185c0b.png)
 
 ## Features
 
@@ -11,9 +13,9 @@ CLI bot that will buy you an item from [allegro.pl](https://allegro.pl) as soon 
 - Super fast buyer, optimized to buy an item in 1x PUT and 1x POST calls
 - Displays a summary table at the end
 - Highly configurable
-- Works on both linux and PC
+- Works on both Linux and PC
 
-## Instalation
+## Installation
 
 1. Clone the repo  <br><br>`git clone https://github.com/piotrwawrzyn/allegrosniper.git`<br>
 
@@ -33,7 +35,7 @@ CLI bot that will buy you an item from [allegro.pl](https://allegro.pl) as soon 
 ```
 3. Create auctions.txt file in the project root directory
 
-4.  In the auction.txt file paste a url to the auction or auctions you want the bot to watch. Split every auction URL with a new line character
+4.  In the auction.txt file paste a URL to the auction or auctions you want the bot to watch. Split every auction URL with a new line character
 ```
     https://allegro.pl/oferta/something-something-something-12345678
     https://allegro.pl/oferta/something-else-87654321
