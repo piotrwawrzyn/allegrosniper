@@ -13,7 +13,7 @@ CLI bot that will buy you an item from [allegro.pl](https://allegro.pl) as soon 
 - Super fast buyer, optimized to buy an item in 1x PUT and 1x POST calls
 - Displays a summary table at the end
 - Highly configurable
-- Works on both Linux and PC
+- Works on both Linux and Windows
 
 ## Installation
 
