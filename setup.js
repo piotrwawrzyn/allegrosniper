@@ -11,7 +11,7 @@ const setup = {
   maximalBuyingPrice: 1,
   msInterval: 1000,
   accountsToUseCount: -1, // with value of -1 will use all available accounts
-  headless: true
+  headless: false
 };
 
 module.exports = setup;

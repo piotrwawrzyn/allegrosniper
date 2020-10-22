@@ -57,7 +57,7 @@ class AuctionScanner {
   }
 
   async closePopup() {
-    const popupButtonClass = '._13q9y._8hkto._7qjq4._ey68j._1o9j9._1yx73';
+    const popupButtonClass = '._13q9y._8hkto.munh_56_m';
     const popupButton = await this.page.evaluate(
       popupButtonClass => document.querySelector(popupButtonClass),
       popupButtonClass
@@ -66,7 +66,6 @@ class AuctionScanner {
     if (popupButton) {
       this.log('Closing popup...');
       await this.page.click(popupButtonClass);
-      await this.wait();
     }
   }
 
@@ -137,9 +136,11 @@ class AuctionScanner {
 
       const data = await response.text();
 
+
       // Get auction information
 
-      const result = data.match(/(?<=JSON\.parse\(\s*).*?(?=\s*\)\s)/);
+      const result = data.match(/window\.\$transactionFrontend = (.*?)<\/script>/g);
+
 
       if (result === null) {
         if (auction.justCheckThePrice) {
@@ -152,9 +153,11 @@ class AuctionScanner {
         };
       }
 
-      const jsonStringToParse = result[0];
+      const jsonStringToParse = result[0].replace(/window\.\$transactionFrontend = /, '').replace(/<\/script>/, '');
 
-      const transactionObject = JSON.parse(JSON.parse(jsonStringToParse));
+
+
+      const transactionObject = JSON.parse(jsonStringToParse);
 
       // I assume that there will always be exactly ONE >>order<< in the array
       if (!transactionObject) {
@@ -164,21 +167,21 @@ class AuctionScanner {
         };
       }
 
-      if (!transactionObject.orders) {
+      if (!transactionObject.purchase.orders) {
         return {
           result: 'error',
           message: `Orders property in transaction object is null or undefined`
         };
       }
 
-      const [order] = transactionObject.orders;
+      const [order] = transactionObject.purchase.orders;
 
       // I assume that there will always be exactly ONE >>offer<< in the array
       const [offer] = order.offers;
 
       if (!order || !offer) return;
 
-      const { totalPrice } = offer;
+      const totalPrice = offer.totalPrice;
 
       const pricePerItem = (totalPrice / auction.quantity).toFixed(2);
 
@@ -188,10 +191,10 @@ class AuctionScanner {
 
       if (pricePerItem <= auction.expectedPrice) {
         // This is a good time to buy
-        const transactionId = transactionObject.id;
+        const transactionId = transactionObject.purchase.id;
 
         // Payment Id may be null at this point
-        let paymentId = transactionObject.payment.id;
+        let paymentId = transactionObject.purchase.payment.id;
 
         const { delivery } = order;
 
