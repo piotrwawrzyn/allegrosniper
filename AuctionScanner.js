@@ -57,7 +57,8 @@ class AuctionScanner {
   }
 
   async closePopup() {
-    const popupButtonClass = '._13q9y._8hkto.munh_56_m';
+    const popupButtonClass =
+      '.m7er_0k.m7er_56_s.m3h2_16_m._854c2_2sUz3.m3h2_16_s._854c2_167Bx.mgn2_14.mp0t_0a.m9qz_yo.mp7g_oh.mse2_40.mqu1_40.mtsp_ib.mli8_k4.mp4t_0.m3h2_0.mryx_0.munh_0.m911_5r.mefy_5r.mnyp_5r.mdwl_5r.msbw_2.mldj_2.mtag_2.mm2b_2.mqvr_2.msa3_z4.mqen_m6.meqh_en.m0qj_5r.mh36_16.mvrt_16.mg9e_0.mj7a_0.m9tr_pf.m2ha_2.m8qd_qh.mjt1_n2.bqyr8.mgmw_9u.msts_enp.mrmn_qo.mrhf_u8.m31c_kb.m0ux_fp.b1bc7';
     const popupButton = await this.page.evaluate(
       popupButtonClass => document.querySelector(popupButtonClass),
       popupButtonClass
@@ -77,9 +78,20 @@ class AuctionScanner {
   async fillloginData(user) {
     this.log('Filling login form...');
 
-    await this.page.type('#username', user.email);
+    try {
+      await this.page.type('#username', user.email);
+    } catch (err) {
+      await this.page.type('#login', user.email);
+    }
+
     await this.page.type('#password', user.password);
-    await this.page.click('#login-button');
+
+    try {
+      await this.page.click('#login-button');
+    } catch (err) {
+      await this.page.click('.m7er_56.mp4t_16.mp4t_0_s.bz58c.bl8ld');
+    }
+
     await this.wait();
   }
 
@@ -136,11 +148,11 @@ class AuctionScanner {
 
       const data = await response.text();
 
-
       // Get auction information
 
-      const result = data.match(/window\.\$transactionFrontend = (.*?)<\/script>/g);
-
+      const result = data.match(
+        /window\.\$transactionFrontend = (.*?)<\/script>/g
+      );
 
       if (result === null) {
         if (auction.justCheckThePrice) {
@@ -153,9 +165,9 @@ class AuctionScanner {
         };
       }
 
-      const jsonStringToParse = result[0].replace(/window\.\$transactionFrontend = /, '').replace(/<\/script>/, '');
-
-
+      const jsonStringToParse = result[0]
+        .replace(/window\.\$transactionFrontend = /, '')
+        .replace(/<\/script>/, '');
 
       const transactionObject = JSON.parse(jsonStringToParse);
 
