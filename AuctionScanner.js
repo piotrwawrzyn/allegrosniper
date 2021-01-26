@@ -4,6 +4,7 @@ const log = require('./utils/log');
 const sleep = require('./utils/sleep');
 const FetchingResult = require('./enums/FetchingResult');
 const ReportTable = require('./ReportTable');
+const injectedMethods = require('./injectMethods');
 
 class AuctionScanner {
   constructor(auctions, user, config) {
@@ -57,16 +58,14 @@ class AuctionScanner {
   }
 
   async closePopup() {
-    const popupButtonClass =
-      '.m7er_0k.m7er_56_s.m3h2_16_m._854c2_2sUz3.m3h2_16_s._854c2_167Bx.mgn2_14.mp0t_0a.m9qz_yo.mp7g_oh.mse2_40.mqu1_40.mtsp_ib.mli8_k4.mp4t_0.m3h2_0.mryx_0.munh_0.m911_5r.mefy_5r.mnyp_5r.mdwl_5r.msbw_2.mldj_2.mtag_2.mm2b_2.mqvr_2.msa3_z4.mqen_m6.meqh_en.m0qj_5r.mh36_16.mvrt_16.mg9e_0.mj7a_0.m9tr_pf.m2ha_2.m8qd_qh.mjt1_n2.bqyr8.mgmw_9u.msts_enp.mrmn_qo.mrhf_u8.m31c_kb.m0ux_fp.b1bc7';
-    const popupButton = await this.page.evaluate(
-      popupButtonClass => document.querySelector(popupButtonClass),
-      popupButtonClass
+    const popupCloseButton = await this.getElementByText(
+      'button',
+      'Ok, zgadzam się'
     );
 
-    if (popupButton) {
+    if (popupCloseButton) {
       this.log('Closing popup...');
-      await this.page.click(popupButtonClass);
+      await popupCloseButton.click();
     }
   }
 
@@ -75,22 +74,24 @@ class AuctionScanner {
     await this.page.goto(url);
   }
 
-  async fillloginData(user) {
+  async fillFirstFound(selectors, text) {
+    for (const sel of selectors) {
+      try {
+        await this.page.type(sel, text);
+      } catch (err) {
+        this.log(`Selector ${sel} not found.`);
+      }
+    }
+  }
+
+  async fillLoginData(user) {
     this.log('Filling login form...');
 
-    try {
-      await this.page.type('#username', user.email);
-    } catch (err) {
-      await this.page.type('#login', user.email);
-    }
-
+    await this.fillFirstFound(['#username', '#login'], user.email);
     await this.page.type('#password', user.password);
 
-    try {
-      await this.page.click('#login-button');
-    } catch (err) {
-      await this.page.click('.m7er_56.mp4t_16.mp4t_0_s.bz58c.bl8ld');
-    }
+    const loginButton = await this.getElementByText('button', 'Zaloguj się');
+    await loginButton.click();
 
     await this.wait();
   }
@@ -118,27 +119,14 @@ class AuctionScanner {
       let response;
 
       try {
-        response = await fetch('https://allegro.pl/transaction-entry/buy-now', {
-          credentials: 'include',
-          headers: {
-            accept:
-              'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-            'accept-language': 'pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7',
-            'cache-control': 'max-age=0',
-            'content-type': 'application/x-www-form-urlencoded',
-            dpr: '1',
-            'sec-fetch-mode': 'navigate',
-            'sec-fetch-site': 'same-origin',
-            'sec-fetch-user': '?1',
-            'upgrade-insecure-requests': '1',
-            'viewport-width': '1920'
-          },
-          referrer: auction.url,
-          referrerPolicy: 'unsafe-url',
-          body: `item_id=${auction.id}&guest=1&quantity=${auction.quantity}`,
-          method: 'POST',
-          mode: 'cors'
-        });
+        response = await fetch(
+          'https://allegro.pl/transaction-entry/buy-now',
+          injectedMethods.buyNowHeaders(
+            auction.url,
+            auction.id,
+            auction.quantity
+          )
+        );
       } catch (err) {
         return {
           result: 'error',
@@ -156,7 +144,7 @@ class AuctionScanner {
 
       if (result === null) {
         if (auction.justCheckThePrice) {
-          return { result: 'priceChecked', message: 999999 };
+          return { result: 'priceChecked', message: 'null' };
         }
 
         return {
@@ -219,22 +207,7 @@ class AuctionScanner {
         try {
           await fetch(
             `https://edge.allegro.pl/purchases/${transactionId}/buy-commands/web`,
-            {
-              credentials: 'include',
-              headers: {
-                accept: 'application/vnd.allegro.public.v1+json',
-                'accept-language': 'pl-PL',
-                'content-type': 'application/vnd.allegro.public.v1+json',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'same-site',
-                'transaction-type': 'CART'
-              },
-              referrer: `https://allegro.pl/transaction-front/app/user/purchase/${transactionId}/dapf`,
-              referrerPolicy: 'no-referrer-when-downgrade',
-              body: '{}',
-              method: 'PUT',
-              mode: 'cors'
-            }
+            injectedMethods.purchaseHeaders(transactionId)
           );
         } catch (err) {
           return {
@@ -244,21 +217,10 @@ class AuctionScanner {
         }
 
         try {
-          await fetch('https://edge.allegro.pl/payment/finalize', {
-            credentials: 'include',
-            headers: {
-              accept: 'application/vnd.allegro.public.v2+json',
-              'accept-language': 'pl-PL',
-              'content-type': 'application/vnd.allegro.public.v2+json',
-              'sec-fetch-mode': 'cors',
-              'sec-fetch-site': 'same-site'
-            },
-            referrer: `https://allegro.pl/transaction-front/app/user/purchase/${transactionId}/dapf`,
-            referrerPolicy: 'no-referrer-when-downgrade',
-            body: `{"paymentId":"${paymentId}"}`,
-            method: 'POST',
-            mode: 'cors'
-          });
+          await fetch(
+            'https://edge.allegro.pl/payment/finalize',
+            injectedMethods.finalizeHeaders(transactionId, paymentId)
+          );
         } catch (err) {
           return {
             result: 'error',
@@ -271,8 +233,6 @@ class AuctionScanner {
           message: `${auction.quantity}x Item has been successfuly bought for ${pricePerItem} PLN`
         };
       } else {
-        // Well, price is meh let's proceed
-
         return {
           result: 'tooExpensive',
           message: `The price is ${pricePerItem} PLN and it sux`
@@ -284,16 +244,11 @@ class AuctionScanner {
   }
 
   async authorize() {
-    // Go to login page
     await this.page.goto('http://allegro.pl/login/auth');
-
-    // Close popup
     await this.page.waitFor(1000);
     await this.closePopup();
     await this.page.waitFor(1000);
-
-    // Fill login data and submit
-    await this.fillloginData(this.user);
+    await this.fillLoginData(this.user);
   }
 
   async restart(secondsBeforeRestart) {
@@ -308,6 +263,7 @@ class AuctionScanner {
     try {
       await this.openNewIncognitoPage();
       await this.authorize();
+      await injectedMethods(this.page);
 
       return true;
     } catch (err) {
@@ -347,7 +303,6 @@ class AuctionScanner {
     let result, message;
 
     try {
-      // This try catch block is just in case something really unexpected happens
       const outcome = await this.createTransaction(
         auction,
         id,
@@ -362,7 +317,6 @@ class AuctionScanner {
       return;
     }
 
-    // If bought or error while trying to buy then push new record to report table
     if (
       result === FetchingResult.BUYING_ERROR ||
       result === FetchingResult.SUCCESSFULY_BOUGHT

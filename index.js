@@ -4,11 +4,9 @@ const {
   msInterval,
   accountsToUseCount,
   headless,
-  scanQuery,
   quantityPerAccount
 } = setup;
 const AuctionScanner = require('./AuctionScanner');
-const QueryScanner = require('./QueryScanner');
 const users = require('./users');
 const consoleLogIntro = require('./utils/consoleLogIntro');
 const showPatchNotes = require('./utils/showPatchNotes');
@@ -18,14 +16,17 @@ const trimEach = require('./utils/trimEach');
 const config = {
   msInterval,
   maximalBuyingPrice,
-  quantityPerAccount,
-  scanQuery
+  quantityPerAccount
 };
 
-const auctions = trimEach(readFileAndSplitLines('auctions.txt'));
+const auctions = trimEach(readFileAndSplitLines('auctions.txt')).filter(
+  el => el.trim() !== ''
+);
 
-if ((auctions.length === 0 || auctions[0] === '') && scanQuery === '')
+if (!auctions.length)
   throw new Error('No auctions found in auctions.txt file!');
+
+if (!users.length) throw new Error('No users found in users.txt file!');
 
 (async () => {
   consoleLogIntro();
@@ -35,13 +36,7 @@ if ((auctions.length === 0 || auctions[0] === '') && scanQuery === '')
 
   for (const [index, user] of users.entries()) {
     if (accountsToUseCount >= 0 && index >= accountsToUseCount) break;
-
-    if (!scanQuery) {
-      const auctionScanner = new AuctionScanner(auctions, user, config);
-      auctionScanner.start();
-    } else {
-      const userScanner = new QueryScanner([], user, config);
-      userScanner.start();
-    }
+    const auctionScanner = new AuctionScanner(auctions, user, config);
+    auctionScanner.start();
   }
 })();
