@@ -11,7 +11,7 @@ const VERSIONS = {
 };
 
 const patchnotesCookiePath = './cookie';
-const currentVersion = VERSIONS.v221;
+const currentVersion = VERSIONS.v222;
 const patchnotes = {};
 
 const addPatchNote = (patchnote, version) => {

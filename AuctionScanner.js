@@ -10,12 +10,16 @@ class AuctionScanner {
   constructor(auctions, user, config) {
     AuctionScanner.runningInstances.push(this);
 
-    const { msInterval, quantityPerAccount, maximalBuyingPrice } = config;
+    const {
+      priceCheckIntervalMs,
+      quantityPerAccount,
+      maximalBuyingPrice
+    } = config;
 
     this.auctions = auctions;
     this.maximalBuyingPrice = maximalBuyingPrice;
     this.user = user;
-    this.msInterval = msInterval;
+    this.priceCheckIntervalMs = priceCheckIntervalMs;
     this.quantityPerAccount = quantityPerAccount;
     this.dateStarted = new Date();
 
@@ -114,6 +118,8 @@ class AuctionScanner {
     };
 
     this.lastFetchingStarted = new Date();
+
+    /* Everything below in this function happens in the browsers console */
 
     const result = await this.page.evaluate(async auction => {
       let response;
@@ -330,7 +336,6 @@ class AuctionScanner {
       });
     }
 
-    // Handle what happens next
     switch (result) {
       case FetchingResult.PRICE_CHECKED: {
         return {
@@ -382,15 +387,13 @@ class AuctionScanner {
 
   async scan() {
     while (true) {
-      if (
-        AuctionScanner.runningInstances[0] === this &&
-        !AuctionScanner.urlToBuy
-      ) {
-        // I'm the leading bot, I need to check if the price is ok
+      const isLeadingBot = AuctionScanner.runningInstances[0] === this;
+      const isReadyToPurchase = !!AuctionScanner.urlToBuy;
+
+      if (isLeadingBot && !isReadyToPurchase) {
         for (const auction of this.auctions) {
           const auctionData = await this.attemptToBuy(auction, true);
 
-          // Safety check
           if (!auctionData) continue;
 
           const { url, price } = auctionData;
@@ -410,7 +413,7 @@ class AuctionScanner {
               'leader'
             );
             const timeToSleep = Math.round(
-              this.msInterval / this.auctions.length
+              this.priceCheckIntervalMs / this.auctions.length
             );
             this.log(`Sleeping for ${timeToSleep}...`, 'leader');
             await sleep(timeToSleep);
@@ -418,7 +421,7 @@ class AuctionScanner {
         }
       }
 
-      if (AuctionScanner.urlToBuy) {
+      if (isReadyToPurchase) {
         this.logNotificationResponse();
         const outcome = await this.attemptToBuy(AuctionScanner.urlToBuy);
 

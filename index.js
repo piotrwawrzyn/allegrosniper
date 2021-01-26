@@ -1,7 +1,7 @@
 const setup = require('./setup');
 const {
   maximalBuyingPrice,
-  msInterval,
+  priceCheckIntervalMs,
   accountsToUseCount,
   headless,
   quantityPerAccount
@@ -14,7 +14,7 @@ const readFileAndSplitLines = require('./utils/readFileAndSplitLines');
 const trimEach = require('./utils/trimEach');
 
 const config = {
-  msInterval,
+  priceCheckIntervalMs,
   maximalBuyingPrice,
   quantityPerAccount
 };
