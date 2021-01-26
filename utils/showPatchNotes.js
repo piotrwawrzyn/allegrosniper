@@ -6,7 +6,8 @@ const VERSIONS = {
   v200: '2.0.0',
   v210: '2.1.0',
   v220: '2.2.0',
-  v221: '2.2.1'
+  v221: '2.2.1',
+  v222: '2.2.2'
 };
 
 const patchnotesCookiePath = './cookie';
@@ -83,6 +84,10 @@ const addPatchNotes = () => {
   addPatchNote(
     `users.txt and auctions.txt are now trimmed so don't be afraid of a whitespace at the end of the line`,
     VERSIONS.v221
+  );
+  addPatchNote(
+    `Removed unstable search by query function and did some minor code refactorings`,
+    VERSIONS.v222
   );
 };
 
