@@ -37,6 +37,11 @@ module.exports = async page => {
         purchase: transactionId =>
           `https://edge.allegro.pl/purchases/${transactionId}/buy-commands/web`
       },
+      regex: {
+        transactionObject: /window\.\$transactionFrontend = (.*?)<\/script>/g,
+        transactionObjectCutLeft: /window\.\$transactionFrontend = /,
+        transactionObjectCutRight: /<\/script>/
+      },
       FetchingResult
     };
 

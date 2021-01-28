@@ -131,7 +131,7 @@ class AuctionScanner {
     const result = await this.page.evaluate(async auction => {
       let response;
 
-      const { headers, urls, FetchingResult } = injectedPayload;
+      const { headers, urls, regex, FetchingResult } = injectedPayload;
 
       try {
         response = await fetch(
@@ -147,9 +147,7 @@ class AuctionScanner {
 
       const data = await response.text();
 
-      const result = data.match(
-        /window\.\$transactionFrontend = (.*?)<\/script>/g
-      );
+      const result = data.match(regex.transactionObject);
 
       if (result === null) {
         if (auction.justCheckThePrice) {
@@ -163,8 +161,8 @@ class AuctionScanner {
       }
 
       const jsonStringToParse = result[0]
-        .replace(/window\.\$transactionFrontend = /, '')
-        .replace(/<\/script>/, '');
+        .replace(regex.transactionObjectCutLeft, '')
+        .replace(regex.transactionObjectCutRight, '');
 
       const transactionObject = JSON.parse(jsonStringToParse);
 
