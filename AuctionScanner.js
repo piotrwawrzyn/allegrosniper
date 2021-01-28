@@ -4,7 +4,7 @@ const log = require('./utils/log');
 const sleep = require('./utils/sleep');
 const FetchingResult = require('./enums/FetchingResult');
 const ReportTable = require('./ReportTable');
-const injectMethods = require('./injectMethods');
+const injectPayloadToPage = require('./utils/injectPayloadToPage');
 
 class AuctionScanner {
   constructor(auctions, user, config) {
@@ -123,14 +123,22 @@ class AuctionScanner {
     const result = await this.page.evaluate(async auction => {
       let response;
 
+      const {
+        buyNowHeaders,
+        purchaseHeaders,
+        finalizeHeaders,
+        urls,
+        FetchingResult
+      } = injectedPayload;
+
       try {
         response = await fetch(
-          'https://allegro.pl/transaction-entry/buy-now',
-          injectMethods.buyNowHeaders(auction.url, auction.id, auction.quantity)
+          urls.buyNow,
+          buyNowHeaders(auction.url, auction.id, auction.quantity)
         );
       } catch (err) {
         return {
-          result: 'error',
+          result: FetchingResult.BUYING_ERROR,
           message: `Failed to fetch buy-now POST call`
         };
       }
@@ -143,11 +151,11 @@ class AuctionScanner {
 
       if (result === null) {
         if (auction.justCheckThePrice) {
-          return { result: 'priceChecked', message: 'null' };
+          return { result: FetchingResult.PRICE_CHECKED, message: 'null' };
         }
 
         return {
-          result: 'error',
+          result: FetchingResult.BUYING_ERROR,
           message: `Can't parse auction price because no JSON has been found!`
         };
       }
@@ -160,14 +168,14 @@ class AuctionScanner {
 
       if (!transactionObject) {
         return {
-          result: 'error',
+          result: FetchingResult.BUYING_ERROR,
           message: `Transaction object is null or undefined`
         };
       }
 
       if (!transactionObject.purchase.orders) {
         return {
-          result: 'error',
+          result: FetchingResult.BUYING_ERROR,
           message: `Orders property in transaction object is null or undefined`
         };
       }
@@ -182,7 +190,7 @@ class AuctionScanner {
       const pricePerItem = (totalPrice / auction.quantity).toFixed(2);
 
       if (auction.justCheckThePrice) {
-        return { result: 'priceChecked', message: pricePerItem };
+        return { result: FetchingResult.PRICE_CHECKED, message: pricePerItem };
       }
 
       const timeToBuy = pricePerItem <= auction.expectedPrice;
@@ -195,41 +203,38 @@ class AuctionScanner {
 
         if (!delivery)
           return {
-            result: 'error',
+            result: FetchingResult.BUYING_ERROR,
             message: `Delivery method has not been set`
           };
 
         try {
           await fetch(
-            `https://edge.allegro.pl/purchases/${transactionId}/buy-commands/web`,
-            injectMethods.purchaseHeaders(transactionId)
+            urls.purchase(transactionId),
+            purchaseHeaders(transactionId)
           );
         } catch (err) {
           return {
-            result: 'error',
+            result: FetchingResult.BUYING_ERROR,
             message: `Failed to fetch buy-commands PUT call`
           };
         }
 
         try {
-          await fetch(
-            'https://edge.allegro.pl/payment/finalize',
-            injectMethods.finalizeHeaders(transactionId, paymentId)
-          );
+          await fetch(urls.finalize, finalizeHeaders(transactionId, paymentId));
         } catch (err) {
           return {
-            result: 'error',
+            result: FetchingResult.BUYING_ERROR,
             message: `Failed to fetch finalize POST call`
           };
         }
 
         return {
-          result: 'success',
+          result: FetchingResult.SUCCESSFULY_BOUGHT,
           message: `${auction.quantity}x Item has been successfuly bought for ${pricePerItem} PLN`
         };
       } else {
         return {
-          result: 'tooExpensive',
+          result: FetchingResult.TOO_EXPENSIVE,
           message: `The price is ${pricePerItem} PLN and it sux`
         };
       }
@@ -260,7 +265,7 @@ class AuctionScanner {
     try {
       await this.openNewIncognitoPage();
       await this.authorize();
-      await injectMethods(this.page);
+      await injectPayloadToPage(this.page);
 
       return true;
     } catch (err) {
@@ -295,9 +300,9 @@ class AuctionScanner {
       : getAuctionIdFromUrl(auction); */
 
     if (justCheckThePrice) {
-      this.log(`Let me check the price on auction ${auctionId}...`, 'leader');
+      this.log(`Checking price on auction ${auctionId}...`, 'leader');
     } else {
-      this.log(`Let me snipe down auction ${auctionId}...`);
+      this.log(`Buying auction ${auctionId}...`);
     }
 
     let result, message;
@@ -428,12 +433,12 @@ class AuctionScanner {
     if (AuctionScanner.runningInstances[0] !== this) {
       this.log('Waiting for the notification from the leader');
     }
+    const sleepTimeForAwaitingBotsMs = 50;
+    const sleepTimePerAuction = Math.round(
+      this.priceCheckIntervalMs / this.auctions.length
+    );
 
     while (true) {
-      const sleepTimePerAuction = Math.round(
-        this.priceCheckIntervalMs / this.auctions.length
-      );
-      const sleepTimeForAwaitingBotsMs = 50;
       const isLeadingBot = AuctionScanner.runningInstances[0] === this;
       const isReadyToPurchase = !!AuctionScanner.urlToBuy;
 
@@ -444,7 +449,7 @@ class AuctionScanner {
 
         continue;
       } else if (isLeadingBot) {
-        this.checkPrices(sleepTimePerAuction);
+        await this.checkPrices(sleepTimePerAuction);
       } else {
         await sleep(sleepTimeForAwaitingBotsMs);
       }

@@ -1,6 +1,8 @@
+const FetchingResult = require('../enums/FetchingResult');
+
 module.exports = async page => {
-  await page.evaluate(() => {
-    const methods = {
+  await page.evaluate(FetchingResult => {
+    const payload = {
       buyNowHeaders: (url, id, quantity) => {
         return {
           credentials: 'include',
@@ -58,9 +60,16 @@ module.exports = async page => {
           method: 'POST',
           mode: 'cors'
         };
-      }
+      },
+      urls: {
+        buyNow: 'https://allegro.pl/transaction-entry/buy-now',
+        purchase: transactionId =>
+          `https://edge.allegro.pl/purchases/${transactionId}/buy-commands/web`,
+        finalize: 'https://edge.allegro.pl/payment/finalize'
+      },
+      FetchingResult
     };
 
-    window.injectedMethods = methods;
-  });
+    window.injectedPayload = payload;
+  }, FetchingResult);
 };
