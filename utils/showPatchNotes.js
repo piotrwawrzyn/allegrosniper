@@ -7,11 +7,12 @@ const VERSIONS = {
   v210: '2.1.0',
   v220: '2.2.0',
   v221: '2.2.1',
-  v222: '2.2.2'
+  v222: '2.2.2',
+  v223: '2.2.3'
 };
 
 const patchnotesCookiePath = './cookie';
-const currentVersion = VERSIONS.v222;
+const currentVersion = VERSIONS.v223;
 const patchnotes = {};
 
 const addPatchNote = (patchnote, version) => {
@@ -88,6 +89,10 @@ const addPatchNotes = () => {
   addPatchNote(
     `Removed unstable search by query function and did some minor code refactorings`,
     VERSIONS.v222
+  );
+  addPatchNote(
+    `Code quality improvements and minor optimizations`,
+    VERSIONS.v223
   );
 };
 

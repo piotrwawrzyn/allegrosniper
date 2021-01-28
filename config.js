@@ -1,4 +1,4 @@
-const setup = {
+const config = {
   quantityPerAccount: 1,
   maximalBuyingPrice: 1,
   priceCheckIntervalMs: 1000,
@@ -6,4 +6,4 @@ const setup = {
   headless: true
 };
 
-module.exports = setup;
+module.exports = config;

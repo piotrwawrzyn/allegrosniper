@@ -77,7 +77,7 @@ class AuctionScanner {
     await this.page.goto(url);
   }
 
-  async fillFirstFound(selectors, text) {
+  /*   async fillFirstFound(selectors, text) {
     for (const sel of selectors) {
       try {
         await this.page.type(sel, text);
@@ -85,13 +85,21 @@ class AuctionScanner {
         this.log(`Selector ${sel} not found.`);
       }
     }
+  } */
+
+  async fillInput(selector, text) {
+    try {
+      await this.page.type(selector, text);
+    } catch (err) {
+      this.log(`Selector ${selector} not found.`);
+    }
   }
 
   async fillLoginData(user) {
     this.log('Filling login form...');
 
-    await this.fillFirstFound(['#username', '#login'], user.email);
-    await this.page.type('#password', user.password);
+    await this.fillInput('#login', user.email);
+    await this.fillInput('#password', user.password);
 
     const loginButton = await this.getElementByText('button', 'Zaloguj się');
     await loginButton.click();

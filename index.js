@@ -1,23 +1,17 @@
-const setup = require('./setup');
+const config = require('./config');
 const {
   maximalBuyingPrice,
   priceCheckIntervalMs,
   accountsToUseCount,
   headless,
   quantityPerAccount
-} = setup;
+} = config;
 const AuctionScanner = require('./AuctionScanner');
 const users = require('./users');
 const consoleLogIntro = require('./utils/consoleLogIntro');
 const showPatchNotes = require('./utils/showPatchNotes');
 const readFileAndSplitLines = require('./utils/readFileAndSplitLines');
 const trimEach = require('./utils/trimEach');
-
-const config = {
-  priceCheckIntervalMs,
-  maximalBuyingPrice,
-  quantityPerAccount
-};
 
 const auctions = trimEach(readFileAndSplitLines('auctions.txt')).filter(
   el => el.trim() !== ''
@@ -36,7 +30,11 @@ if (!users.length) throw new Error('No users found in users.txt file!');
 
   for (const [index, user] of users.entries()) {
     if (accountsToUseCount >= 0 && index >= accountsToUseCount) break;
-    const auctionScanner = new AuctionScanner(auctions, user, config);
+    const auctionScanner = new AuctionScanner(auctions, user, {
+      priceCheckIntervalMs,
+      maximalBuyingPrice,
+      quantityPerAccount
+    });
     auctionScanner.start();
   }
 })();

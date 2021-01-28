@@ -23,6 +23,11 @@ const log = async (message, user, special) => {
       message = chalk.redBright.bold(message);
       break;
     }
+
+    case 'warning': {
+      message = chalk.yellowBright.bold(message);
+      break;
+    }
   }
 
   const msgToDisplay = `${chalk.yellow(email)}${chalk.cyan(
