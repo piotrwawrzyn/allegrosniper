@@ -4,7 +4,7 @@ const log = require('./utils/log');
 const sleep = require('./utils/sleep');
 const FetchingResult = require('./enums/FetchingResult');
 const ReportTable = require('./ReportTable');
-const injectedMethods = require('./injectMethods');
+const injectMethods = require('./injectMethods');
 
 class AuctionScanner {
   constructor(auctions, user, config) {
@@ -23,11 +23,10 @@ class AuctionScanner {
     this.quantityPerAccount = quantityPerAccount;
     this.dateStarted = new Date();
 
-    // Create a map connecting auction urls with auction ids
-    this.auctionIdsMap = new Map();
+    this.auctionUrlToIdMap = new Map();
 
-    for (const auction of this.auctions) {
-      this.auctionIdsMap.set(auction, getAuctionIdFromUrl(auction));
+    for (const auctionUrl of this.auctions) {
+      this.auctionUrlToIdMap.set(auctionUrl, getAuctionIdFromUrl(auctionUrl));
     }
   }
 
@@ -101,16 +100,16 @@ class AuctionScanner {
   }
 
   async openNewIncognitoPage() {
-    this.log('Opening new browser context');
+    this.log('Opening new incognito tab');
     const context = await AuctionScanner.browser.createIncognitoBrowserContext();
 
     this.page = await context.newPage();
   }
 
-  async createTransaction(auctionUrl, id, justCheckThePrice) {
+  async createTransaction(auctionUrl, auctionId, justCheckThePrice) {
     const auction = {
       url: auctionUrl,
-      id,
+      id: auctionId,
       expectedPrice: this.maximalBuyingPrice,
       buyer: this.user,
       justCheckThePrice,
@@ -127,11 +126,7 @@ class AuctionScanner {
       try {
         response = await fetch(
           'https://allegro.pl/transaction-entry/buy-now',
-          injectedMethods.buyNowHeaders(
-            auction.url,
-            auction.id,
-            auction.quantity
-          )
+          injectMethods.buyNowHeaders(auction.url, auction.id, auction.quantity)
         );
       } catch (err) {
         return {
@@ -141,8 +136,6 @@ class AuctionScanner {
       }
 
       const data = await response.text();
-
-      // Get auction information
 
       const result = data.match(
         /window\.\$transactionFrontend = (.*?)<\/script>/g
@@ -165,7 +158,6 @@ class AuctionScanner {
 
       const transactionObject = JSON.parse(jsonStringToParse);
 
-      // I assume that there will always be exactly ONE >>order<< in the array
       if (!transactionObject) {
         return {
           result: 'error',
@@ -181,8 +173,6 @@ class AuctionScanner {
       }
 
       const [order] = transactionObject.purchase.orders;
-
-      // I assume that there will always be exactly ONE >>offer<< in the array
       const [offer] = order.offers;
 
       if (!order || !offer) return;
@@ -195,11 +185,10 @@ class AuctionScanner {
         return { result: 'priceChecked', message: pricePerItem };
       }
 
-      if (pricePerItem <= auction.expectedPrice) {
-        // This is a good time to buy
-        const transactionId = transactionObject.purchase.id;
+      const timeToBuy = pricePerItem <= auction.expectedPrice;
 
-        // Payment Id may be null at this point
+      if (timeToBuy) {
+        const transactionId = transactionObject.purchase.id;
         let paymentId = transactionObject.purchase.payment.id;
 
         const { delivery } = order;
@@ -213,7 +202,7 @@ class AuctionScanner {
         try {
           await fetch(
             `https://edge.allegro.pl/purchases/${transactionId}/buy-commands/web`,
-            injectedMethods.purchaseHeaders(transactionId)
+            injectMethods.purchaseHeaders(transactionId)
           );
         } catch (err) {
           return {
@@ -225,7 +214,7 @@ class AuctionScanner {
         try {
           await fetch(
             'https://edge.allegro.pl/payment/finalize',
-            injectedMethods.finalizeHeaders(transactionId, paymentId)
+            injectMethods.finalizeHeaders(transactionId, paymentId)
           );
         } catch (err) {
           return {
@@ -250,7 +239,9 @@ class AuctionScanner {
   }
 
   async authorize() {
-    await this.page.goto('http://allegro.pl/login/auth');
+    const authUrl = 'http://allegro.pl/login/auth';
+
+    await this.page.goto(authUrl);
     await this.page.waitFor(1000);
     await this.closePopup();
     await this.page.waitFor(1000);
@@ -258,7 +249,7 @@ class AuctionScanner {
   }
 
   async restart(secondsBeforeRestart) {
-    this.log('Restarting bot...');
+    this.log(`Restarting bot in ${secondsBeforeRestart} seconds...`);
 
     await this.wait(1000 * secondsBeforeRestart);
     await this.page.close();
@@ -269,7 +260,7 @@ class AuctionScanner {
     try {
       await this.openNewIncognitoPage();
       await this.authorize();
-      await injectedMethods(this.page);
+      await injectMethods(this.page);
 
       return true;
     } catch (err) {
@@ -280,30 +271,33 @@ class AuctionScanner {
     }
   }
 
-  async stop() {
-    await this.page.close();
-
-    // Remove bot instance from the collection
+  async removeInstance() {
     AuctionScanner.runningInstances = AuctionScanner.runningInstances.filter(
       inst => inst !== this
     );
 
-    // Was this the last bot running?
-    if (!AuctionScanner.runningInstances.length) {
+    const wasLastInstance = !AuctionScanner.runningInstances.length;
+
+    if (wasLastInstance) {
       AuctionScanner.reportTable.display();
       await AuctionScanner.browser.close();
     }
   }
 
+  async stop() {
+    await this.page.close();
+    await this.removeInstance();
+  }
+
   async attemptToBuy(auction, justCheckThePrice = false) {
-    const id = this.auctionIdsMap.get(auction)
-      ? this.auctionIdsMap.get(auction)
-      : getAuctionIdFromUrl(auction);
+    const auctionId = this.auctionUrlToIdMap.get(auction);
+    /*       ? this.auctionUrlToIdMap.get(auction)
+      : getAuctionIdFromUrl(auction); */
 
     if (justCheckThePrice) {
-      this.log(`Let me check the price on auction ${id}...`, 'leader');
+      this.log(`Let me check the price on auction ${auctionId}...`, 'leader');
     } else {
-      this.log(`Let me snipe down auction ${id}...`);
+      this.log(`Let me snipe down auction ${auctionId}...`);
     }
 
     let result, message;
@@ -311,7 +305,7 @@ class AuctionScanner {
     try {
       const outcome = await this.createTransaction(
         auction,
-        id,
+        auctionId,
         justCheckThePrice
       );
       result = outcome.result;
@@ -385,62 +379,75 @@ class AuctionScanner {
     this.log(`Hyped. Let's get this!`);
   }
 
+  async handlePurchase() {
+    this.logNotificationResponse();
+    const outcome = await this.attemptToBuy(AuctionScanner.urlToBuy);
+
+    let result = null;
+
+    if (outcome) {
+      result = outcome.result;
+    }
+
+    if (result === FetchingResult.SUCCESSFULY_BOUGHT) {
+      return true;
+    } else {
+      this.log('Unsuccessful purchase with result: ' + result, 'error');
+      this.log(`Let's try again`);
+
+      return false;
+    }
+  }
+
+  async checkPrices(sleepTimePerAuction) {
+    for (const auction of this.auctions) {
+      const auctionData = await this.attemptToBuy(auction, true);
+
+      if (!auctionData) continue;
+
+      const { url, price } = auctionData;
+
+      if (price <= this.maximalBuyingPrice) {
+        if (AuctionScanner.runningInstances.length > 1) {
+          this.logNotification();
+        }
+
+        AuctionScanner.urlToBuy = url;
+
+        break;
+      } else {
+        const auctionId = this.auctionUrlToIdMap.get(url);
+        this.log(`Price on auction ${auctionId} sux (${price} PLN)`, 'leader');
+        this.log(`Sleeping for ${sleepTimePerAuction}...`, 'leader');
+        await sleep(sleepTimePerAuction);
+      }
+    }
+  }
+
   async scan() {
+    if (AuctionScanner.runningInstances[0] !== this) {
+      this.log('Waiting for the notification from the leader');
+    }
+
     while (true) {
+      const sleepTimePerAuction = Math.round(
+        this.priceCheckIntervalMs / this.auctions.length
+      );
+      const sleepTimeForAwaitingBotsMs = 50;
       const isLeadingBot = AuctionScanner.runningInstances[0] === this;
       const isReadyToPurchase = !!AuctionScanner.urlToBuy;
 
-      if (isLeadingBot && !isReadyToPurchase) {
-        for (const auction of this.auctions) {
-          const auctionData = await this.attemptToBuy(auction, true);
-
-          if (!auctionData) continue;
-
-          const { url, price } = auctionData;
-
-          if (price <= this.maximalBuyingPrice) {
-            if (AuctionScanner.runningInstances.length > 1) {
-              this.logNotification();
-            }
-
-            AuctionScanner.urlToBuy = url;
-            break;
-          } else {
-            this.log(
-              `Price on auction ${this.auctionIdsMap.get(
-                url
-              )} sux (${price} PLN)`,
-              'leader'
-            );
-            const timeToSleep = Math.round(
-              this.priceCheckIntervalMs / this.auctions.length
-            );
-            this.log(`Sleeping for ${timeToSleep}...`, 'leader');
-            await sleep(timeToSleep);
-          }
-        }
-      }
-
       if (isReadyToPurchase) {
-        this.logNotificationResponse();
-        const outcome = await this.attemptToBuy(AuctionScanner.urlToBuy);
+        const success = await this.handlePurchase();
 
-        let result = null;
+        if (success) break;
 
-        if (outcome) {
-          result = outcome.result;
-        }
-
-        if (result === FetchingResult.SUCCESSFULY_BOUGHT) {
-          break;
-        } else {
-          this.log('Unsuccessful purchase with result: ' + result, 'error');
-          this.log(`Let's try again`);
-          continue;
-        }
+        continue;
+      } else if (isLeadingBot) {
+        this.checkPrices(sleepTimePerAuction);
+      } else {
+        await sleep(sleepTimeForAwaitingBotsMs);
       }
-
-      await sleep(100);
     }
   }
 
@@ -449,26 +456,23 @@ class AuctionScanner {
 
     if (!successfulInit) return;
 
-    if (AuctionScanner.runningInstances[0] !== this) {
-      this.log('Waiting for the notification from the leader');
-    }
-
     this.scan();
   }
 
   static toString(skipFirst) {
-    let bots = '';
+    let botEmails = '';
+
     for (let i = 0; i < AuctionScanner.runningInstances.length; i++) {
       if (i === 0 && skipFirst) continue;
 
-      bots += AuctionScanner.runningInstances[i].user.email;
+      botEmails += AuctionScanner.runningInstances[i].user.email;
 
       if (i !== AuctionScanner.runningInstances.length - 1) {
-        bots += ', ';
+        botEmails += ', ';
       }
     }
 
-    return bots;
+    return botEmails;
   }
 }
 
