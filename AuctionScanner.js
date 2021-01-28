@@ -131,17 +131,12 @@ class AuctionScanner {
     const result = await this.page.evaluate(async auction => {
       let response;
 
-      const {
-        buyNowHeaders,
-        purchaseHeaders,
-        urls,
-        FetchingResult
-      } = injectedPayload;
+      const { headers, urls, FetchingResult } = injectedPayload;
 
       try {
         response = await fetch(
           urls.buyNow,
-          buyNowHeaders(auction.url, auction.id, auction.quantity)
+          headers.buyNow(auction.url, auction.id, auction.quantity)
         );
       } catch (err) {
         return {
@@ -217,7 +212,7 @@ class AuctionScanner {
         try {
           await fetch(
             urls.purchase(transactionId),
-            purchaseHeaders(transactionId)
+            headers.purchase(transactionId)
           );
         } catch (err) {
           return {
