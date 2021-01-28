@@ -134,7 +134,6 @@ class AuctionScanner {
       const {
         buyNowHeaders,
         purchaseHeaders,
-        finalizeHeaders,
         urls,
         FetchingResult
       } = injectedPayload;
@@ -205,7 +204,7 @@ class AuctionScanner {
 
       if (timeToBuy) {
         const transactionId = transactionObject.purchase.id;
-        let paymentId = transactionObject.purchase.payment.id;
+        // let paymentId = transactionObject.purchase.payment.id;
 
         const { delivery } = order;
 
@@ -223,16 +222,7 @@ class AuctionScanner {
         } catch (err) {
           return {
             result: FetchingResult.BUYING_ERROR,
-            message: `Failed to fetch buy-commands PUT call`
-          };
-        }
-
-        try {
-          await fetch(urls.finalize, finalizeHeaders(transactionId, paymentId));
-        } catch (err) {
-          return {
-            result: FetchingResult.BUYING_ERROR,
-            message: `Failed to fetch finalize POST call`
+            message: `Purchase PUT call failed`
           };
         }
 

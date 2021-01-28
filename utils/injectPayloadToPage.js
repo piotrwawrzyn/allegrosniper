@@ -44,28 +44,10 @@ module.exports = async page => {
           mode: 'cors'
         };
       },
-      finalizeHeaders: (transactionId, paymentId) => {
-        return {
-          credentials: 'include',
-          headers: {
-            accept: 'application/vnd.allegro.public.v2+json',
-            'accept-language': 'pl-PL',
-            'content-type': 'application/vnd.allegro.public.v2+json',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-site'
-          },
-          referrer: `https://allegro.pl/transaction-front/app/user/purchase/${transactionId}/dapf`,
-          referrerPolicy: 'no-referrer-when-downgrade',
-          body: `{"paymentId":"${paymentId}"}`,
-          method: 'POST',
-          mode: 'cors'
-        };
-      },
       urls: {
         buyNow: 'https://allegro.pl/transaction-entry/buy-now',
         purchase: transactionId =>
-          `https://edge.allegro.pl/purchases/${transactionId}/buy-commands/web`,
-        finalize: 'https://edge.allegro.pl/payment/finalize'
+          `https://edge.allegro.pl/purchases/${transactionId}/buy-commands/web`
       },
       FetchingResult
     };
