@@ -13,7 +13,8 @@ class AuctionScanner {
     const {
       priceCheckIntervalMs,
       quantityPerAccount,
-      maximalBuyingPrice
+      maximalBuyingPrice,
+      timeForCaptchaResolve
     } = config;
 
     this.auctions = auctions;
@@ -21,6 +22,7 @@ class AuctionScanner {
     this.user = user;
     this.priceCheckIntervalMs = priceCheckIntervalMs;
     this.quantityPerAccount = quantityPerAccount;
+    this.timeForCaptchaResolve = timeForCaptchaResolve;
     this.dateStarted = new Date();
 
     this.auctionUrlToIdMap = new Map();
@@ -238,7 +240,7 @@ class AuctionScanner {
     const authUrl = 'http://allegro.pl/login/auth';
 
     await this.page.goto(authUrl);
-    await this.page.waitFor(1000);
+    await this.page.waitFor(this.timeForCaptchaResolve);
     await this.closePopup();
     await this.page.waitFor(1000);
     await this.fillLoginData(this.user);

@@ -4,7 +4,8 @@ const {
   priceCheckIntervalMs,
   accountsToUseCount,
   headless,
-  quantityPerAccount
+  quantityPerAccount,
+  timeForCaptchaResolve
 } = config;
 const AuctionScanner = require('./AuctionScanner');
 const users = require('./users');
@@ -33,7 +34,8 @@ if (!users.length) throw new Error('No users found in users.txt file!');
     const auctionScanner = new AuctionScanner(auctions, user, {
       priceCheckIntervalMs,
       maximalBuyingPrice,
-      quantityPerAccount
+      quantityPerAccount,
+      timeForCaptchaResolve
     });
     auctionScanner.start();
   }
