@@ -486,7 +486,7 @@ class AuctionScanner {
     let botEmails = '';
 
     for (let i = 0; i < AuctionScanner.runningInstances.length; i++) {
-      if (i === leadingBotIndex && skipLeader) continue;
+      if (i === AuctionScanner.leadingBotIndex && skipLeader) continue;
 
       botEmails += AuctionScanner.runningInstances[i].user.email;
 
