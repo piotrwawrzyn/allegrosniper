@@ -14,7 +14,8 @@ class AuctionScanner {
       priceCheckIntervalMs,
       quantityPerAccount,
       maximalBuyingPrice,
-      timeForCaptchaResolve
+      timeForCaptchaResolve,
+      priceChecksBeforeLeaderSwap
     } = config;
 
     this.auctions = auctions;
@@ -23,6 +24,7 @@ class AuctionScanner {
     this.priceCheckIntervalMs = priceCheckIntervalMs;
     this.quantityPerAccount = quantityPerAccount;
     this.timeForCaptchaResolve = timeForCaptchaResolve;
+    this.priceChecksBeforeLeaderSwap = priceChecksBeforeLeaderSwap;
     this.dateStarted = new Date();
 
     this.auctionUrlToIdMap = new Map();
@@ -36,6 +38,7 @@ class AuctionScanner {
     log('Creating browser instance');
 
     AuctionScanner.runningInstances = [];
+    AuctionScanner.leadingBotIndex = 0;
     AuctionScanner.reportTable = new ReportTable();
 
     AuctionScanner.browser = await puppeteer.launch({
@@ -431,8 +434,13 @@ class AuctionScanner {
       this.priceCheckIntervalMs / this.auctions.length
     );
 
+    let checksCounter = 0;
+
     while (true) {
-      const isLeadingBot = AuctionScanner.runningInstances[0] === this;
+      const myIndex = AuctionScanner.runningInstances.findIndex(
+        bot => bot === this
+      );
+      const isLeadingBot = myIndex === AuctionScanner.leadingBotIndex;
       const isReadyToPurchase = !!AuctionScanner.urlToBuy;
 
       if (isReadyToPurchase) {
@@ -443,9 +451,26 @@ class AuctionScanner {
         continue;
       } else if (isLeadingBot) {
         await this.checkPrices(sleepTimePerAuction);
+        if (checksCounter === this.priceChecksBeforeLeaderSwap) {
+          this.changeLeadingBotIndex();
+          checksCounter = 0;
+        } else {
+          checksCounter++;
+        }
       } else {
         await sleep(sleepTimeForAwaitingBotsMs);
       }
+    }
+  }
+
+  changeLeadingBotIndex() {
+    if (
+      AuctionScanner.leadingBotIndex !=
+      AuctionScanner.runningInstances.length - 1
+    ) {
+      AuctionScanner.leadingBotIndex++;
+    } else {
+      AuctionScanner.leadingBotIndex = 0;
     }
   }
 
@@ -457,11 +482,11 @@ class AuctionScanner {
     this.scan();
   }
 
-  static toString(skipFirst) {
+  static toString(skipLeader) {
     let botEmails = '';
 
     for (let i = 0; i < AuctionScanner.runningInstances.length; i++) {
-      if (i === 0 && skipFirst) continue;
+      if (i === leadingBotIndex && skipLeader) continue;
 
       botEmails += AuctionScanner.runningInstances[i].user.email;
 
