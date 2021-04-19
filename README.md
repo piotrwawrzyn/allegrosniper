@@ -37,7 +37,7 @@ CLI bot that will buy you an item from [allegro.pl](https://allegro.pl) as soon 
 
 3. Create `auctions.txt` file in the project root directory
 
-4. In the `auction.txt` file paste a URL to the auction or auctions you want the bot to watch. Split every auction URL with a new line character
+4. In the `auctions.txt` file paste a URL to the auction or auctions you want the bot to watch. Split every auction URL with a new line character
 
 ```
     https://allegro.pl/oferta/something-something-something-12345678
